@@ -80,6 +80,16 @@ def cancel_download(download_id: str):
         )
     return {"download_id": download_id, "status": "CANCELLED"}
 
+@app.delete("/api/v1/downloads/{download_id}")
+def delete_download(download_id: str):
+    success = orchestrator.delete_download(download_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Download {download_id} não encontrado."
+        )
+    return {"download_id": download_id, "status": "DELETED"}
+
 if __name__ == "__main__":
     uvicorn.run(
         "src.backend.main:app",

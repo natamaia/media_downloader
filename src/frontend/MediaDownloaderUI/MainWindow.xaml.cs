@@ -157,11 +157,11 @@ namespace MediaDownloaderUI
             }
         }
 
-        private async void BtnCancel_Click(object sender, RoutedEventArgs e)
+        private async void BtnDelete_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string downloadId)
             {
-                bool success = await _apiClient.CancelDownloadAsync(downloadId);
+                bool success = await _apiClient.DeleteDownloadAsync(downloadId);
                 if (success)
                 {
                     RefreshDownloadsList();

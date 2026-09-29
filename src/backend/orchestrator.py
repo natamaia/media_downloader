@@ -56,6 +56,22 @@ class WorkerOrchestrator:
                 return True
             return False
 
+    def delete_download(self, download_id: str) -> bool:
+        with self._lock:
+            worker = self._workers.get(download_id)
+            if worker:
+                worker.cancel()
+                # Attempt file cleanup if partial file exists
+                if worker.file_path and os.path.exists(worker.file_path):
+                    try:
+                        os.remove(worker.file_path)
+                    except Exception as e:
+                        logger.warning(f"Erro ao remover arquivo {worker.file_path}: {e}")
+                del self._workers[download_id]
+                logger.info(f"Worker {download_id} deletado e removido do sistema.")
+                return True
+            return False
+
     def get_active_count(self) -> int:
         with self._lock:
             return sum(
