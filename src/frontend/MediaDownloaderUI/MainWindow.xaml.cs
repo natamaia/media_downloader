@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace MediaDownloaderUI
@@ -13,56 +12,42 @@ namespace MediaDownloaderUI
     {
         private readonly ApiClient _apiClient;
         private readonly DispatcherTimer _pollTimer;
-        private VideoInfo? _currentInfo;
 
         public MainWindow()
         {
             InitializeComponent();
             _apiClient = new ApiClient();
 
-            // Set default OS paths text
+            // Set OS System paths in Header Component
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             string musicPath = Path.Combine(userProfile, "Music", "app_music");
             string videosPath = Path.Combine(userProfile, "Videos", "app_videos");
+            HeaderControl.SetPaths(musicPath, videosPath);
 
-            TxtMusicPath.Text = musicPath;
-            TxtVideoPath.Text = videosPath;
-
-            UpdateTargetDirText();
-
-            // Timer for periodic progress updates from backend API
+            // Timer for progress polling from backend API
             _pollTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(1)
             };
             _pollTimer.Tick += PollTimer_Tick;
 
-            // Handle window closing to clean up background processes
             this.Closed += MainWindow_Closed;
 
-            // Auto-start backend & check health on startup
+            // Non-blocking auto-start backend
             InitBackendAndHealthAsync();
         }
 
         private async void InitBackendAndHealthAsync()
         {
-            // 1. Ensure backend API server process is running automatically
+            // Non-blocking start of Python backend server
             await BackendManager.EnsureBackendRunningAsync();
 
-            // 2. Check health status and update UI badge
             bool isOnline = await _apiClient.CheckHealthAsync();
+            HeaderControl.SetStatus(isOnline);
+
             if (isOnline)
             {
-                BadgeBackendStatus.Background = System.Windows.Media.Brushes.DarkGreen;
-                DotStatus.Fill = System.Windows.Media.Brushes.SpringGreen;
-                TxtStatusBackend.Text = "API Interna On-line";
                 _pollTimer.Start();
-            }
-            else
-            {
-                BadgeBackendStatus.Background = System.Windows.Media.Brushes.DarkRed;
-                DotStatus.Fill = System.Windows.Media.Brushes.OrangeRed;
-                TxtStatusBackend.Text = "API Desconectada";
             }
         }
 
@@ -72,90 +57,31 @@ namespace MediaDownloaderUI
             BackendManager.StopBackend();
         }
 
-        private void Format_Checked(object sender, RoutedEventArgs e)
+        private async void UrlInputCard_AnalyzeRequested(object? sender, string url)
         {
-            UpdateTargetDirText();
-        }
-
-        private void UpdateTargetDirText()
-        {
-            if (TxtCurrentTargetDir == null) return;
-
-            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (RbMp3 != null && RbMp3.IsChecked == true)
-            {
-                TxtCurrentTargetDir.Text = $"Pasta destino: {Path.Combine(userProfile, "Music", "app_music")}";
-            }
-            else
-            {
-                TxtCurrentTargetDir.Text = $"Pasta destino: {Path.Combine(userProfile, "Videos", "app_videos")}";
-            }
-        }
-
-        private async void BtnAnalyze_Click(object sender, RoutedEventArgs e)
-        {
-            string url = TxtUrl.Text.Trim();
-            if (string.IsNullOrEmpty(url) || url.StartsWith("Cole aqui"))
-            {
-                MessageBox.Show("Por favor, cole um link válido para analisar.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            TxtPreviewTitle.Text = "Analisando metadados do link...";
-            CardPreview.Visibility = Visibility.Visible;
+            PreviewCard.Visibility = Visibility.Visible;
+            PreviewCard.SetLoading();
 
             var info = await _apiClient.GetVideoInfoAsync(url);
             if (info != null)
             {
-                _currentInfo = info;
-                TxtPreviewTitle.Text = info.Title;
-                TxtProviderName.Text = info.Provider;
-                TxtPreviewDuration.Text = $"Duração: {TimeSpan.FromSeconds(info.DurationSeconds):mm\\:ss} | Formatos disponíveis: {string.Join(", ", info.Qualities.Take(4))}";
+                PreviewCard.SetInfo(info);
+                UrlInputCard.PopulateQualities(info.Qualities);
 
-                if (!string.IsNullOrEmpty(info.Thumbnail))
-                {
-                    try
-                    {
-                        ImgThumbnail.Source = new BitmapImage(new Uri(info.Thumbnail));
-                    }
-                    catch { }
-                }
-
-                // Populate quality combo if items exist
-                if (info.Qualities.Count > 0)
-                {
-                    CmbQuality.Items.Clear();
-                    foreach (var q in info.Qualities)
-                    {
-                        CmbQuality.Items.Add(new ComboBoxItem { Content = q });
-                    }
-                    CmbQuality.SelectedIndex = 0;
-                }
+                // Auto-detect audio vs video provider to toggle MP3/MP4 selection automatically
+                bool isAudioProvider = info.Provider is "Spotify" or "Deezer" or "YouTube Music" or "SoundCloud";
+                UrlInputCard.SetSelectedFormat(isAudioProvider);
             }
             else
             {
-                MessageBox.Show("Não foi possível analisar o link informado. Verifique se a URL está acessível.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
-                CardPreview.Visibility = Visibility.Collapsed;
+                MessageBox.Show("Não foi possível analisar o link informado. Verifique a URL.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                PreviewCard.Visibility = Visibility.Collapsed;
             }
         }
 
-        private async void BtnStartDownload_Click(object sender, RoutedEventArgs e)
+        private async void UrlInputCard_DownloadRequested(object? sender, (string url, string formatType, string quality) args)
         {
-            string url = TxtUrl.Text.Trim();
-            if (string.IsNullOrEmpty(url) || url.StartsWith("Cole aqui"))
-            {
-                MessageBox.Show("Cole uma URL válida antes de iniciar o download.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            string formatType = (RbMp3.IsChecked == true) ? "mp3" : "mp4";
-            string quality = "1080p";
-            if (CmbQuality.SelectedItem is ComboBoxItem selectedItem)
-            {
-                quality = selectedItem.Content.ToString() ?? "1080p";
-            }
-
-            var download = await _apiClient.CreateDownloadAsync(url, formatType, quality);
+            var download = await _apiClient.CreateDownloadAsync(args.url, args.formatType, args.quality);
             if (download != null)
             {
                 RefreshDownloadsList();
@@ -196,7 +122,7 @@ namespace MediaDownloaderUI
         private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
         {
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string targetFolder = (RbMp3.IsChecked == true)
+            string targetFolder = UrlInputCard.IsAudioSelected
                 ? Path.Combine(userProfile, "Music", "app_music")
                 : Path.Combine(userProfile, "Videos", "app_videos");
 
