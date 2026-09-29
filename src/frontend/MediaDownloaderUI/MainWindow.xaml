@@ -233,9 +233,10 @@
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
 
-                                                <!-- Row 1: Title, Provider, Status Badge -->
+                                                <!-- Row 0: Title, Provider, Status Badge -->
                                                 <Grid Grid.Row="0" Margin="0,0,0,6">
                                                     <StackPanel Orientation="Horizontal">
                                                         <Border Background="{DynamicResource BadgeBackgroundBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
@@ -249,11 +250,14 @@
                                                     </StackPanel>
                                                 </Grid>
 
+                                                <!-- Row 1: Optional Error Message / Notice -->
+                                                <TextBlock Grid.Row="1" Text="{Binding ErrorMessage}" FontSize="11" Foreground="{Binding StatusColorBrush}" Margin="0,0,0,6" Visibility="{Binding ErrorMessageVisibility}" TextWrapping="Wrap"/>
+
                                                 <!-- Row 2: Emerald Progress Bar -->
-                                                <ProgressBar Grid.Row="1" Height="6" Value="{Binding ProgressPercent}" Maximum="100" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource EmeraldAccentBrush}" Margin="0,0,0,6"/>
+                                                <ProgressBar Grid.Row="2" Height="6" Value="{Binding ProgressPercent}" Maximum="100" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource EmeraldAccentBrush}" Margin="0,0,0,6"/>
 
                                                 <!-- Row 3: Speed, ETA, Action Buttons -->
-                                                <Grid Grid.Row="2">
+                                                <Grid Grid.Row="3">
                                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                         <TextBlock Text="Progresso: " FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                                         <TextBlock Text="{Binding ProgressPercent, StringFormat='{}{0}%'}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,12,0"/>

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
+using System.Windows;
 using System.Windows.Media;
 
 namespace MediaDownloaderUI
@@ -160,7 +161,15 @@ namespace MediaDownloaderUI
         public string? ErrorMessage
         {
             get => _errorMessage;
-            set { if (_errorMessage != value) { _errorMessage = value; OnPropertyChanged(); } }
+            set
+            {
+                if (_errorMessage != value)
+                {
+                    _errorMessage = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(ErrorMessageVisibility));
+                }
+            }
         }
 
         [JsonIgnore]
@@ -171,6 +180,7 @@ namespace MediaDownloaderUI
             "DOWNLOADING" => "BAIXANDO",
             "CONVERTING" => "CONVERTENDO",
             "COMPLETED" => "CONCLUÍDO",
+            "EXISTS" => "ARQUIVO EXISTENTE",
             "FAILED" => "ERRO",
             "CANCELLED" => "CANCELADO",
             "DELETED" => "DELETADO",
@@ -188,6 +198,7 @@ namespace MediaDownloaderUI
                     "FAILED" => "#EF4444",
                     "CANCELLED" => "#F59E0B",
                     "COMPLETED" => "#10B981",
+                    "EXISTS" => "#3B82F6",
                     "DOWNLOADING" => "#10B981",
                     "EXTRACTING" => "#3B82F6",
                     "CONVERTING" => "#8B5CF6",
@@ -196,6 +207,9 @@ namespace MediaDownloaderUI
                 return (Brush)new BrushConverter().ConvertFrom(hex)!;
             }
         }
+
+        [JsonIgnore]
+        public Visibility ErrorMessageVisibility => string.IsNullOrEmpty(ErrorMessage) ? Visibility.Collapsed : Visibility.Visible;
 
         [JsonIgnore]
         public bool IsDeleted => Status == "DELETED";

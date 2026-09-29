@@ -147,7 +147,7 @@ class DownloadWorker:
                 ydl_opts['merge_output_format'] = 'mp4'
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(target_url, download=True)
+                info = ydl.extract_info(target_url, download=False)
                 if info.get('_type') == 'playlist' and info.get('entries'):
                     info = info['entries'][0]
                 self.title = info.get('title', 'Sem título')
@@ -155,6 +155,21 @@ class DownloadWorker:
                 if self.format_type == FormatType.MP3:
                     filename = os.path.splitext(filename)[0] + ".mp3"
                 self.file_path = filename
+
+                # Pre-download file existence check
+                if os.path.exists(filename):
+                    logger.info(f"Arquivo '{filename}' já existe no diretório. Marcando status como EXISTS.")
+                    if not self._cancelled and self.status != WorkerStatus.DELETED:
+                        self.status = WorkerStatus.EXISTS
+                        self.progress_percent = 100.0
+                        self.download_speed = "0 KB/s"
+                        self.eta_seconds = 0
+                        self.error_message = "Arquivo já existente no diretório de destino."
+                        self._notify_update()
+                    return
+
+                # Perform actual download if file does not exist
+                ydl.download([target_url])
 
             if not self._cancelled and self.status != WorkerStatus.DELETED:
                 self.status = WorkerStatus.COMPLETED
@@ -167,9 +182,18 @@ class DownloadWorker:
             self._notify_update()
         except Exception as e:
             if not self._cancelled and self.status != WorkerStatus.DELETED:
-                logger.error(f"Erro no worker {self.download_id}: {str(e)}")
-                self.status = WorkerStatus.FAILED
-                self.error_message = str(e)
+                err_str = str(e)
+                logger.error(f"Erro no worker {self.download_id}: {err_str}")
+
+                if "already exists" in err_str.lower() or "file exists" in err_str.lower():
+                    self.status = WorkerStatus.EXISTS
+                    self.progress_percent = 100.0
+                    self.error_message = "Arquivo já existente no diretório."
+                else:
+                    self.status = WorkerStatus.FAILED
+                    clean_msg = err_str.replace("ERROR: ", "").replace("[generic]", "").strip()
+                    self.error_message = clean_msg if clean_msg else "Falha durante o download da mídia."
+
                 self._notify_update()
 
     def to_response(self) -> DownloadProgressResponse:
