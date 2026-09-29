@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace MediaDownloaderUI
@@ -23,12 +24,6 @@ namespace MediaDownloaderUI
 
             // Bind ObservableCollection to prevent UI re-render glitching
             LstDownloads.ItemsSource = _downloadsCollection;
-
-            // Set OS System paths in Header Component
-            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string musicPath = Path.Combine(userProfile, "Music", "app_music");
-            string videosPath = Path.Combine(userProfile, "Videos", "app_videos");
-            HeaderControl.SetPaths(musicPath, videosPath);
 
             // Connect DownloadRequested event from PreviewCard
             PreviewCard.DownloadRequested += PreviewCard_DownloadRequested;
@@ -51,11 +46,16 @@ namespace MediaDownloaderUI
             await BackendManager.EnsureBackendRunningAsync();
 
             bool isOnline = await _apiClient.CheckHealthAsync();
-            HeaderControl.SetStatus(isOnline);
-
             if (isOnline)
             {
+                DotStatus.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
+                TxtStatusBackend.Text = "MediaDownloader Pro v1.0.0 | API Interna On-line";
                 _pollTimer.Start();
+            }
+            else
+            {
+                DotStatus.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
+                TxtStatusBackend.Text = "MediaDownloader Pro v1.0.0 | API Desconectada";
             }
         }
 
@@ -128,7 +128,7 @@ namespace MediaDownloaderUI
             {
                 var downloads = await _apiClient.ListDownloadsAsync();
 
-                // Update items in ObservableCollection without recreating collection to eliminate UI glitches
+                // Update items in ObservableCollection without recreating collection
                 for (int i = 0; i < downloads.Count; i++)
                 {
                     var item = downloads[i];
