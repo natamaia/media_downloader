@@ -79,5 +79,22 @@ namespace MediaDownloaderUI
 
         [JsonPropertyName("error_message")]
         public string? ErrorMessage { get; set; }
+
+        [JsonIgnore]
+        public string DisplayStatus => Status switch
+        {
+            "PENDING" => "PENDENTE",
+            "EXTRACTING" => "ANALISANDO",
+            "DOWNLOADING" => "BAIXANDO",
+            "CONVERTING" => "CONVERTENDO",
+            "COMPLETED" => "CONCLUÍDO",
+            "FAILED" => "ERRO",
+            "CANCELLED" => "CANCELADO",
+            "DELETED" => "DELETADO",
+            _ => Status
+        };
+
+        [JsonIgnore]
+        public bool IsDeleted => Status == "DELETED";
     }
 }

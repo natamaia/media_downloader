@@ -14,6 +14,7 @@ class WorkerStatus(str, Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+    DELETED = "DELETED"
 
 class InfoRequest(BaseModel):
     url: str = Field(..., description="Target URL for video/audio extraction")

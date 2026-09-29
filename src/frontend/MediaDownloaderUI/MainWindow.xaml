@@ -156,7 +156,7 @@
                                                 </StackPanel>
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                                     <TextBlock Text="{Binding Quality}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
-                                                    <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource EmeraldAccentBrush}"/>
+                                                    <TextBlock Text="{Binding DisplayStatus}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource EmeraldAccentBrush}"/>
                                                 </StackPanel>
                                             </Grid>
 

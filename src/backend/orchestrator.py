@@ -1,3 +1,4 @@
+import os
 import logging
 import threading
 from typing import Dict, List, Optional
@@ -61,14 +62,17 @@ class WorkerOrchestrator:
             worker = self._workers.get(download_id)
             if worker:
                 worker.cancel()
-                # Attempt file cleanup if partial file exists
+                # Attempt file cleanup if file exists on disk
                 if worker.file_path and os.path.exists(worker.file_path):
                     try:
                         os.remove(worker.file_path)
+                        logger.info(f"Arquivo {worker.file_path} removido com sucesso do disco.")
                     except Exception as e:
                         logger.warning(f"Erro ao remover arquivo {worker.file_path}: {e}")
-                del self._workers[download_id]
-                logger.info(f"Worker {download_id} deletado e removido do sistema.")
+                
+                # Update status to DELETED so user sees "DELETADO" status in UI
+                worker.status = WorkerStatus.DELETED
+                logger.info(f"Worker {download_id} cancelado, arquivo apagado do disco e status alterado para DELETADO.")
                 return True
             return False
 
@@ -76,11 +80,11 @@ class WorkerOrchestrator:
         with self._lock:
             to_delete = [
                 download_id for download_id, worker in self._workers.items()
-                if worker.status in (WorkerStatus.COMPLETED, WorkerStatus.FAILED, WorkerStatus.CANCELLED)
+                if worker.status in (WorkerStatus.COMPLETED, WorkerStatus.FAILED, WorkerStatus.CANCELLED, WorkerStatus.DELETED)
             ]
             for download_id in to_delete:
                 del self._workers[download_id]
-            logger.info(f"{len(to_delete)} tarefas finalizadas limpas da fila.")
+            logger.info(f"{len(to_delete)} tarefas finalizadas/limpas do histórico de downloads.")
             return len(to_delete)
 
     def get_active_count(self) -> int:
