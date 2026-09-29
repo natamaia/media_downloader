@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace MediaDownloaderUI
@@ -48,14 +47,7 @@ namespace MediaDownloaderUI
             bool isOnline = await _apiClient.CheckHealthAsync();
             if (isOnline)
             {
-                DotStatus.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
-                TxtStatusBackend.Text = "MediaDownloader Pro v1.0.0 | API Interna On-line";
                 _pollTimer.Start();
-            }
-            else
-            {
-                DotStatus.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
-                TxtStatusBackend.Text = "MediaDownloader Pro v1.0.0 | API Desconectada";
             }
         }
 
