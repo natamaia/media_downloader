@@ -8,7 +8,7 @@
         Background="#181818" Foreground="#F3F4F6">
 
     <Window.Resources>
-        <!-- Custom Thin Minimalist ScrollBar Style (6px Width with Emerald Thumb) -->
+        <!-- Custom 6px Thin Dark-Emerald ScrollBar Style -->
         <Style TargetType="{x:Type ScrollBar}">
             <Setter Property="Width" Value="6"/>
             <Setter Property="Background" Value="Transparent"/>
@@ -63,7 +63,7 @@
             </Setter>
         </Style>
 
-        <!-- Delete Action Button Style (Red Hover/Dark Slate) -->
+        <!-- Delete Button Style -->
         <Style x:Key="DeleteBtn" TargetType="Button">
             <Setter Property="Background" Value="#7F1D1D"/>
             <Setter Property="Foreground" Value="#FECACA"/>
@@ -84,119 +84,98 @@
         </Style>
     </Window.Resources>
 
-    <!-- MAIN APP GRID: NO WINDOW SCROLLBAR (WINDOW FITS SCREEN) -->
-    <Grid>
+    <!-- MAIN APP GRID: NO FOOTER, NO WINDOW SCROLLBAR, FULL RESPONSIVE FIT -->
+    <Grid Margin="18">
         <Grid.RowDefinitions>
-            <!-- Responsive Body Container (Row 0) -->
-            <RowDefinition Height="*"/>
-            <!-- Footer Status Bar (Row 1) -->
+            <!-- Row 0: URL Input & Analyzed Preview (Auto Height) -->
             <RowDefinition Height="Auto"/>
+            <!-- Row 1: Parent Queue Container Card (Expands fluidly to fill window height) -->
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- MAIN RESPONSIVE CONTAINER GRID -->
-        <Grid Grid.Row="0" Margin="18,18,18,6">
-            <Grid.RowDefinitions>
-                <!-- Top Section: URL Input & Analyzed Preview -->
-                <RowDefinition Height="Auto"/>
-                <!-- Queue Container Card: Fills remaining window height -->
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+        <!-- TOP SECTION: URL INPUT & PREVIEW CARD -->
+        <StackPanel Grid.Row="0">
+            <!-- COMPONENT 1: URL INPUT CARD -->
+            <components:UrlInputControl x:Name="UrlInputCard"
+                                        AnalyzeRequested="UrlInputCard_AnalyzeRequested"/>
 
-            <!-- TOP SECTION -->
-            <StackPanel Grid.Row="0">
-                <!-- COMPONENT 1: URL INPUT CARD -->
-                <components:UrlInputControl x:Name="UrlInputCard"
-                                            AnalyzeRequested="UrlInputCard_AnalyzeRequested"/>
+            <!-- COMPONENT 2: MEDIA PREVIEW CARD -->
+            <components:MediaPreviewControl x:Name="PreviewCard" Visibility="Collapsed"/>
+        </StackPanel>
 
-                <!-- COMPONENT 2: MEDIA PREVIEW CARD -->
-                <components:MediaPreviewControl x:Name="PreviewCard" Visibility="Collapsed"/>
-            </StackPanel>
-
-            <!-- QUEUE CONTAINER CARD (Fills remaining height up to window margin, never overflows window) -->
-            <Border Grid.Row="1" Style="{StaticResource CardStyle}" VerticalAlignment="Stretch" Margin="0,0,0,6">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <!-- Queue Header -->
-                        <RowDefinition Height="Auto"/>
-                        <!-- Inner List Container with Custom ScrollViewer -->
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Queue Card Title Bar -->
-                    <Grid Grid.Row="0" Margin="0,0,0,12">
-                        <TextBlock Text="Fila de Downloads e Workers" FontSize="15" FontWeight="Bold" Foreground="#F3F4F6"/>
-                        <TextBlock x:Name="TxtWorkerCount" Text="0 Workers Ativos" FontSize="11" Foreground="#34D399" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                    </Grid>
-
-                    <!-- INNER SCROLLABLE CONTAINER FOR DOWNLOAD CARDS -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <Grid>
-                            <ItemsControl x:Name="LstDownloads">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#1E1E1E" BorderBrush="#333333" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,8,10">
-                                            <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-
-                                                <!-- Row 1: Title, Provider, Status Badge -->
-                                                <Grid Grid.Row="0" Margin="0,0,0,6">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Border Background="#064E3B" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
-                                                            <TextBlock Text="{Binding Provider}" FontSize="10" FontWeight="Bold" Foreground="#34D399"/>
-                                                        </Border>
-                                                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold" Foreground="#F3F4F6"/>
-                                                    </StackPanel>
-                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                        <TextBlock Text="{Binding Quality}" FontSize="11" Foreground="#9CA3AF" Margin="0,0,10,0"/>
-                                                        <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="Bold" Foreground="#10B981"/>
-                                                    </StackPanel>
-                                                </Grid>
-
-                                                <!-- Row 2: Emerald Progress Bar -->
-                                                <ProgressBar Grid.Row="1" Height="6" Value="{Binding ProgressPercent}" Maximum="100" Background="#252526" Foreground="#10B981" Margin="0,0,0,6"/>
-
-                                                <!-- Row 3: Speed, ETA, Action Buttons -->
-                                                <Grid Grid.Row="2">
-                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <TextBlock Text="Progresso: " FontSize="11" Foreground="#9CA3AF"/>
-                                                        <TextBlock Text="{Binding ProgressPercent, StringFormat='{}{0}%'}" FontSize="11" FontWeight="Bold" Foreground="#F3F4F6" Margin="0,0,12,0"/>
-                                                        <TextBlock Text="Velocidade: " FontSize="11" Foreground="#9CA3AF"/>
-                                                        <TextBlock Text="{Binding DownloadSpeed}" FontSize="11" FontWeight="Bold" Foreground="#34D399" Margin="0,0,12,0"/>
-                                                        <TextBlock Text="ETA: " FontSize="11" Foreground="#9CA3AF"/>
-                                                        <TextBlock Text="{Binding EtaSeconds, StringFormat='{}{0}s'}" FontSize="11" Foreground="#F3F4F6"/>
-                                                    </StackPanel>
-
-                                                    <!-- Action Buttons: Abrir Pasta e Apagar -->
-                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                        <Button Content="Abrir Pasta" Style="{StaticResource SecondaryBtn}" Margin="0,0,6,0" Tag="{Binding FilePath}" Click="BtnOpenFolder_Click"/>
-                                                        <Button Content="Apagar" Style="{StaticResource DeleteBtn}" Tag="{Binding DownloadId}" Click="BtnDelete_Click"/>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-
-                            <TextBlock x:Name="TxtEmptyList" Text="Nenhum download ativo no momento." FontSize="12" Foreground="#6B7280" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,30"/>
-                        </Grid>
-                    </ScrollViewer>
-                </Grid>
-            </Border>
-        </Grid>
-
-        <!-- MINIMALIST FOOTER STATUS BAR -->
-        <Border Grid.Row="1" Background="#1E1E1E" BorderBrush="#252526" BorderThickness="0,1,0,0" Padding="16,8">
+        <!-- PARENT QUEUE CONTAINER CARD (Expands fluidly without forcing a window scrollbar) -->
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" VerticalAlignment="Stretch" Margin="0,0,0,0">
             <Grid>
-                <StackPanel Orientation="Horizontal">
-                    <Ellipse x:Name="DotStatus" Width="7" Height="7" Fill="#10B981" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="TxtStatusBackend" Text="MediaDownloader Pro v1.0.0 | API Interna On-line" FontSize="11" Foreground="#9CA3AF"/>
-                </StackPanel>
-                <TextBlock Text="Windows 10 / 11 Native" FontSize="11" Foreground="#6B7280" HorizontalAlignment="Right"/>
+                <Grid.RowDefinitions>
+                    <!-- Queue Card Title Bar -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Inner Scrollable Container -->
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Queue Card Title Bar -->
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <TextBlock Text="Fila de Downloads e Workers" FontSize="15" FontWeight="Bold" Foreground="#F3F4F6"/>
+                    <TextBlock x:Name="TxtWorkerCount" Text="0 Workers Ativos" FontSize="11" Foreground="#34D399" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- INNER FLUID SCROLLVIEWER FOR DOWNLOAD CARDS (Custom 6px Emerald ScrollBar) -->
+                <ScrollViewer Grid.Row="1" VerticalAlignment="Stretch" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid>
+                        <ItemsControl x:Name="LstDownloads">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#1E1E1E" BorderBrush="#333333" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,8,10">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Row 1: Title, Provider, Status Badge -->
+                                            <Grid Grid.Row="0" Margin="0,0,0,6">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Border Background="#064E3B" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                                                        <TextBlock Text="{Binding Provider}" FontSize="10" FontWeight="Bold" Foreground="#34D399"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold" Foreground="#F3F4F6"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding Quality}" FontSize="11" Foreground="#9CA3AF" Margin="0,0,10,0"/>
+                                                    <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="Bold" Foreground="#10B981"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- Row 2: Emerald Progress Bar -->
+                                            <ProgressBar Grid.Row="1" Height="6" Value="{Binding ProgressPercent}" Maximum="100" Background="#252526" Foreground="#10B981" Margin="0,0,0,6"/>
+
+                                            <!-- Row 3: Speed, ETA, Action Buttons -->
+                                            <Grid Grid.Row="2">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="Progresso: " FontSize="11" Foreground="#9CA3AF"/>
+                                                    <TextBlock Text="{Binding ProgressPercent, StringFormat='{}{0}%'}" FontSize="11" FontWeight="Bold" Foreground="#F3F4F6" Margin="0,0,12,0"/>
+                                                    <TextBlock Text="Velocidade: " FontSize="11" Foreground="#9CA3AF"/>
+                                                    <TextBlock Text="{Binding DownloadSpeed}" FontSize="11" FontWeight="Bold" Foreground="#34D399" Margin="0,0,12,0"/>
+                                                    <TextBlock Text="ETA: " FontSize="11" Foreground="#9CA3AF"/>
+                                                    <TextBlock Text="{Binding EtaSeconds, StringFormat='{}{0}s'}" FontSize="11" Foreground="#F3F4F6"/>
+                                                </StackPanel>
+
+                                                <!-- Action Buttons: Abrir Pasta e Apagar -->
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <Button Content="Abrir Pasta" Style="{StaticResource SecondaryBtn}" Margin="0,0,6,0" Tag="{Binding FilePath}" Click="BtnOpenFolder_Click"/>
+                                                    <Button Content="Apagar" Style="{StaticResource DeleteBtn}" Tag="{Binding DownloadId}" Click="BtnDelete_Click"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock x:Name="TxtEmptyList" Text="Nenhum download ativo no momento." FontSize="12" Foreground="#6B7280" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,30"/>
+                    </Grid>
+                </ScrollViewer>
             </Grid>
         </Border>
     </Grid>
