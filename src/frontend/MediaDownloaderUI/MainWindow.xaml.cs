@@ -36,20 +36,27 @@ namespace MediaDownloaderUI
                 Interval = TimeSpan.FromSeconds(1)
             };
             _pollTimer.Tick += PollTimer_Tick;
-            _pollTimer.Start();
 
-            // Check API connection health on startup
-            CheckHealthAsync();
+            // Handle window closing to clean up background processes
+            this.Closed += MainWindow_Closed;
+
+            // Auto-start backend & check health on startup
+            InitBackendAndHealthAsync();
         }
 
-        private async void CheckHealthAsync()
+        private async void InitBackendAndHealthAsync()
         {
+            // 1. Ensure backend API server process is running automatically
+            await BackendManager.EnsureBackendRunningAsync();
+
+            // 2. Check health status and update UI badge
             bool isOnline = await _apiClient.CheckHealthAsync();
             if (isOnline)
             {
                 BadgeBackendStatus.Background = System.Windows.Media.Brushes.DarkGreen;
                 DotStatus.Fill = System.Windows.Media.Brushes.SpringGreen;
                 TxtStatusBackend.Text = "API Interna On-line";
+                _pollTimer.Start();
             }
             else
             {
@@ -57,6 +64,12 @@ namespace MediaDownloaderUI
                 DotStatus.Fill = System.Windows.Media.Brushes.OrangeRed;
                 TxtStatusBackend.Text = "API Desconectada";
             }
+        }
+
+        private void MainWindow_Closed(object? sender, EventArgs e)
+        {
+            _pollTimer.Stop();
+            BackendManager.StopBackend();
         }
 
         private void Format_Checked(object sender, RoutedEventArgs e)
@@ -153,7 +166,7 @@ namespace MediaDownloaderUI
             }
         }
 
-        private async void PollTimer_Tick(object? sender, EventArgs e)
+        private void PollTimer_Tick(object? sender, EventArgs e)
         {
             RefreshDownloadsList();
         }
