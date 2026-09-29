@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using Microsoft.Win32;
 
 namespace MediaDownloaderUI
@@ -9,10 +11,16 @@ namespace MediaDownloaderUI
     {
         public static bool IsLightTheme { get; private set; }
 
-        public static void InitializeTheme()
+        [DllImport("dwmapi.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+        private static extern void DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int pvAttribute, int cbAttribute);
+
+        private const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
+        private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+
+        public static void InitializeTheme(Window? mainWindow = null)
         {
             bool isSystemLight = DetectWindowsSystemLightTheme();
-            ApplyTheme(isSystemLight);
+            ApplyTheme(isSystemLight, mainWindow);
         }
 
         public static bool DetectWindowsSystemLightTheme()
@@ -36,12 +44,12 @@ namespace MediaDownloaderUI
             return false; // Default to Dark Mode
         }
 
-        public static void ToggleTheme()
+        public static void ToggleTheme(Window? mainWindow = null)
         {
-            ApplyTheme(!IsLightTheme);
+            ApplyTheme(!IsLightTheme, mainWindow);
         }
 
-        public static void ApplyTheme(bool isLight)
+        public static void ApplyTheme(bool isLight, Window? mainWindow = null)
         {
             IsLightTheme = isLight;
             string themeFile = isLight ? "Themes/LightTheme.xaml" : "Themes/DarkTheme.xaml";
@@ -56,10 +64,42 @@ namespace MediaDownloaderUI
                     appDicts.Clear();
                     appDicts.Add(newThemeDict);
                 }
+
+                if (mainWindow != null)
+                {
+                    UpdateNativeTitleBarTheme(mainWindow, isLight);
+                }
+                else if (Application.Current?.MainWindow != null)
+                {
+                    UpdateNativeTitleBarTheme(Application.Current.MainWindow, isLight);
+                }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to apply theme dict ({themeFile}): {ex.Message}");
+            }
+        }
+
+        public static void UpdateNativeTitleBarTheme(Window window, bool isLight)
+        {
+            try
+            {
+                var hwnd = new WindowInteropHelper(window).Handle;
+                if (hwnd == IntPtr.Zero) return;
+
+                int useDarkMode = isLight ? 0 : 1;
+                try
+                {
+                    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDarkMode, sizeof(int));
+                }
+                catch
+                {
+                    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1, ref useDarkMode, sizeof(int));
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error setting DWM title bar theme: {ex.Message}");
             }
         }
     }

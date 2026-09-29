@@ -172,6 +172,41 @@ namespace MediaDownloaderUI
             }
         }
 
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            ThemeManager.UpdateNativeTitleBarTheme(this, ThemeManager.IsLightTheme);
+        }
+
+        private void Window_StateChanged(object? sender, EventArgs e)
+        {
+            if (BtnMaximize != null)
+            {
+                BtnMaximize.Content = (WindowState == WindowState.Maximized) ? "🗗" : "🗖";
+            }
+        }
+
+        private void BtnMinimize_Click(object sender, RoutedEventArgs e)
+        {
+            SystemCommands.MinimizeWindow(this);
+        }
+
+        private void BtnMaximize_Click(object sender, RoutedEventArgs e)
+        {
+            if (WindowState == WindowState.Maximized)
+            {
+                SystemCommands.RestoreWindow(this);
+            }
+            else
+            {
+                SystemCommands.MaximizeWindow(this);
+            }
+        }
+
+        private void BtnClose_Click(object sender, RoutedEventArgs e)
+        {
+            SystemCommands.CloseWindow(this);
+        }
+
         private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
         {
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
