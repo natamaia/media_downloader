@@ -109,5 +109,18 @@ namespace MediaDownloaderUI
                 return false;
             }
         }
+
+        public async Task<bool> ClearDownloadsAsync()
+        {
+            try
+            {
+                var resp = await _client.PostAsync("/api/v1/downloads/clear", null);
+                return resp.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

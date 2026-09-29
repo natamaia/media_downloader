@@ -162,6 +162,16 @@ namespace MediaDownloaderUI
             }
         }
 
+        private async void BtnClearDownloads_Click(object sender, RoutedEventArgs e)
+        {
+            bool success = await _apiClient.ClearDownloadsAsync();
+            if (success)
+            {
+                _downloadsCollection.Clear();
+                RefreshDownloadsList();
+            }
+        }
+
         private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
         {
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

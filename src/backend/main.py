@@ -90,6 +90,11 @@ def delete_download(download_id: str):
         )
     return {"download_id": download_id, "status": "DELETED"}
 
+@app.post("/api/v1/downloads/clear")
+def clear_downloads():
+    count = orchestrator.clear_finished_downloads()
+    return {"cleared_count": count}
+
 if __name__ == "__main__":
     uvicorn.run(
         "src.backend.main:app",

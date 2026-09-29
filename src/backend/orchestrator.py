@@ -72,6 +72,17 @@ class WorkerOrchestrator:
                 return True
             return False
 
+    def clear_finished_downloads(self) -> int:
+        with self._lock:
+            to_delete = [
+                download_id for download_id, worker in self._workers.items()
+                if worker.status in (WorkerStatus.COMPLETED, WorkerStatus.FAILED, WorkerStatus.CANCELLED)
+            ]
+            for download_id in to_delete:
+                del self._workers[download_id]
+            logger.info(f"{len(to_delete)} tarefas finalizadas limpas da fila.")
+            return len(to_delete)
+
     def get_active_count(self) -> int:
         with self._lock:
             return sum(

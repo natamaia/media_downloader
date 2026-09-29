@@ -13,13 +13,32 @@ namespace MediaDownloaderUI.Components
         public event EventHandler<(string formatType, string quality)>? DownloadRequested;
         private VideoInfo? _currentInfo;
 
+        private readonly List<string> _audioQualities = new()
+        {
+            "320 kbps (Alta)",
+            "256 kbps",
+            "192 kbps (Média)",
+            "128 kbps (Baixa)"
+        };
+
+        private readonly List<string> _defaultVideoQualities = new()
+        {
+            "1080p (FHD)",
+            "720p (HD)",
+            "480p (SD)",
+            "360p"
+        };
+
+        private List<string> _extractedVideoQualities = new();
+
         public MediaPreviewControl()
         {
             InitializeComponent();
+            UpdateQualitiesForFormat();
             UpdateTargetDirText();
         }
 
-        public bool IsAudioSelected => RbMp3.IsChecked == true;
+        public bool IsAudioSelected => RbMp3?.IsChecked == true;
 
         public void SetLoading(string message = "Analisando metadados do link...")
         {
@@ -57,8 +76,7 @@ namespace MediaDownloaderUI.Components
                 }
             }
 
-            // Populate quality dropdown
-            PopulateQualities(info.Qualities);
+            _extractedVideoQualities = info.Qualities ?? new List<string>();
 
             // Auto-detect audio vs video provider to toggle MP3/MP4 selection automatically
             bool isAudioProvider = info.Provider is "Spotify" or "Deezer" or "YouTube Music" or "SoundCloud";
@@ -69,35 +87,43 @@ namespace MediaDownloaderUI.Components
         {
             if (isAudio)
             {
-                RbMp3.IsChecked = true;
-                RbMp4.IsChecked = false;
+                if (RbMp3 != null) RbMp3.IsChecked = true;
+                if (RbMp4 != null) RbMp4.IsChecked = false;
             }
             else
             {
-                RbMp4.IsChecked = true;
-                RbMp3.IsChecked = false;
+                if (RbMp4 != null) RbMp4.IsChecked = true;
+                if (RbMp3 != null) RbMp3.IsChecked = false;
             }
+            UpdateQualitiesForFormat();
             UpdateTargetDirText();
-        }
-
-        private void PopulateQualities(List<string> qualities)
-        {
-            if (qualities == null || qualities.Count == 0) return;
-
-            CmbQuality.Items.Clear();
-            foreach (var q in qualities)
-            {
-                var item = new ComboBoxItem { Content = q };
-                item.SetResourceReference(Control.ForegroundProperty, "TextPrimaryBrush");
-                item.SetResourceReference(Control.BackgroundProperty, "CardBackgroundBrush");
-                CmbQuality.Items.Add(item);
-            }
-            CmbQuality.SelectedIndex = 0;
         }
 
         private void Format_Checked(object sender, RoutedEventArgs e)
         {
+            UpdateQualitiesForFormat();
             UpdateTargetDirText();
+        }
+
+        private void UpdateQualitiesForFormat()
+        {
+            if (CmbQuality == null) return;
+
+            if (IsAudioSelected)
+            {
+                CmbQuality.ItemsSource = _audioQualities;
+            }
+            else
+            {
+                CmbQuality.ItemsSource = (_extractedVideoQualities.Count > 0)
+                    ? _extractedVideoQualities
+                    : _defaultVideoQualities;
+            }
+
+            if (CmbQuality.Items.Count > 0)
+            {
+                CmbQuality.SelectedIndex = 0;
+            }
         }
 
         private void UpdateTargetDirText()
@@ -105,7 +131,7 @@ namespace MediaDownloaderUI.Components
             if (TxtCurrentTargetDir == null) return;
 
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (RbMp3 != null && RbMp3.IsChecked == true)
+            if (IsAudioSelected)
             {
                 TxtCurrentTargetDir.Text = $"Pasta destino: {Path.Combine(userProfile, "Music", "app_music")}";
             }
@@ -118,11 +144,10 @@ namespace MediaDownloaderUI.Components
         private void BtnStartDownload_Click(object sender, RoutedEventArgs e)
         {
             string formatType = IsAudioSelected ? "mp3" : "mp4";
-            string quality = "1080p";
-            if (CmbQuality.SelectedItem is ComboBoxItem selectedItem)
-            {
-                quality = selectedItem.Content.ToString() ?? "1080p";
-            }
+            string rawQualityStr = CmbQuality.SelectedItem as string ?? (IsAudioSelected ? "320k" : "1080p");
+            
+            // Clean up display strings (e.g. "320 kbps (Alta)" -> "320k", "1080p (FHD)" -> "1080p")
+            string quality = rawQualityStr.Split(' ')[0];
 
             DownloadRequested?.Invoke(this, (formatType, quality));
         }
