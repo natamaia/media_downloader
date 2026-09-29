@@ -8,6 +8,7 @@ from src.backend.models import (
     FormatType, WorkerStatus, DownloadProgressResponse
 )
 from src.backend.config import settings
+from src.backend.extractor import ExtractorService
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class DownloadWorker:
     ):
         self.download_id: str = f"dl_{uuid.uuid4().hex[:8]}"
         self.url: str = url
+        self.provider: str = ExtractorService.detect_provider(url)
         self.format_type: FormatType = format_type
         self.quality: str = quality
         self.output_dir: str = output_dir or settings.DOWNLOAD_OUTPUT_DIR
@@ -98,6 +100,11 @@ class DownloadWorker:
             self.status = WorkerStatus.EXTRACTING
             self._notify_update()
 
+            target_url, provider, is_audio_override = ExtractorService.resolve_target(self.url)
+            self.provider = provider
+            if is_audio_override:
+                self.format_type = FormatType.MP3
+
             out_template = os.path.join(self.output_dir, '%(title)s.%(ext)s')
 
             ydl_opts = {
@@ -105,6 +112,7 @@ class DownloadWorker:
                 'progress_hooks': [self._progress_hook],
                 'quiet': True,
                 'no_warnings': True,
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             }
 
             if self.format_type == FormatType.MP3:
@@ -123,7 +131,6 @@ class DownloadWorker:
                     }],
                 })
             else:
-                # Video MP4 format resolution mapping
                 res_clean = self.quality.replace('p', '')
                 if res_clean.isdigit():
                     height = int(res_clean)
@@ -134,7 +141,9 @@ class DownloadWorker:
                 ydl_opts['merge_output_format'] = 'mp4'
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(self.url, download=True)
+                info = ydl.extract_info(target_url, download=True)
+                if info.get('_type') == 'playlist' and info.get('entries'):
+                    info = info['entries'][0]
                 self.title = info.get('title', 'Sem título')
                 filename = ydl.prepare_filename(info)
                 if self.format_type == FormatType.MP3:
@@ -160,6 +169,7 @@ class DownloadWorker:
         return DownloadProgressResponse(
             download_id=self.download_id,
             url=self.url,
+            provider=self.provider,
             title=self.title,
             format_type=self.format_type,
             quality=self.quality,

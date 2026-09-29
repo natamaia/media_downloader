@@ -26,6 +26,7 @@ class QualityOption(BaseModel):
 
 class VideoInfoResponse(BaseModel):
     url: str
+    provider: str = "Generic"
     title: str
     duration_seconds: int = 0
     thumbnail: Optional[str] = None
@@ -41,6 +42,7 @@ class DownloadCreateRequest(BaseModel):
 class DownloadProgressResponse(BaseModel):
     download_id: str
     url: str
+    provider: str = "Generic"
     title: str = "Aguardando..."
     format_type: FormatType
     quality: str
