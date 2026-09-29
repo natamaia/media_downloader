@@ -61,8 +61,11 @@ class WorkerOrchestrator:
         with self._lock:
             worker = self._workers.get(download_id)
             if worker:
+                # 1. Set status to DELETED first so callbacks don't overwrite it
+                worker.status = WorkerStatus.DELETED
                 worker.cancel()
-                # Attempt file cleanup if file exists on disk
+                
+                # 2. Attempt file cleanup if file_path is set
                 if worker.file_path and os.path.exists(worker.file_path):
                     try:
                         os.remove(worker.file_path)
@@ -70,8 +73,22 @@ class WorkerOrchestrator:
                     except Exception as e:
                         logger.warning(f"Erro ao remover arquivo {worker.file_path}: {e}")
                 
-                # Update status to DELETED so user sees "DELETADO" status in UI
-                worker.status = WorkerStatus.DELETED
+                # Also clean up any partial or temp files in output_dir matching the title
+                if worker.output_dir and os.path.exists(worker.output_dir):
+                    try:
+                        for f in os.listdir(worker.output_dir):
+                            if worker.title not in ("Iniciando...", "Aguardando...") and worker.title in f:
+                                full_p = os.path.join(worker.output_dir, f)
+                                if os.path.exists(full_p):
+                                    os.remove(full_p)
+                                    logger.info(f"Arquivo associado {full_p} removido do disco.")
+                    except Exception as e:
+                        logger.warning(f"Erro ao limpar arquivos associados: {e}")
+
+                worker.file_path = None
+                worker.progress_percent = 0.0
+                worker.download_speed = "0 KB/s"
+                worker.eta_seconds = 0
                 logger.info(f"Worker {download_id} cancelado, arquivo apagado do disco e status alterado para DELETADO.")
                 return True
             return False

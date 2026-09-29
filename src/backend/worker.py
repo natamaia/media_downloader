@@ -49,7 +49,8 @@ class DownloadWorker:
     def cancel(self):
         """Flags the worker as cancelled."""
         self._cancelled = True
-        self.status = WorkerStatus.CANCELLED
+        if self.status != WorkerStatus.DELETED:
+            self.status = WorkerStatus.CANCELLED
         self._notify_update()
 
     def is_cancelled(self) -> bool:
@@ -73,7 +74,8 @@ class DownloadWorker:
 
         status = d.get('status')
         if status == 'downloading':
-            self.status = WorkerStatus.DOWNLOADING
+            if self.status != WorkerStatus.DELETED:
+                self.status = WorkerStatus.DOWNLOADING
             downloaded = d.get('downloaded_bytes', 0)
             total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
             speed = d.get('speed', 0)
@@ -94,8 +96,9 @@ class DownloadWorker:
             self._notify_update()
 
         elif status == 'finished':
-            self.status = WorkerStatus.CONVERTING
-            self.progress_percent = 99.0
+            if self.status != WorkerStatus.DELETED:
+                self.status = WorkerStatus.CONVERTING
+                self.progress_percent = 99.0
             self._notify_update()
 
     def _run(self):
@@ -153,16 +156,17 @@ class DownloadWorker:
                     filename = os.path.splitext(filename)[0] + ".mp3"
                 self.file_path = filename
 
-            if not self._cancelled:
+            if not self._cancelled and self.status != WorkerStatus.DELETED:
                 self.status = WorkerStatus.COMPLETED
                 self.progress_percent = 100.0
                 self._notify_update()
 
         except yt_dlp.utils.DownloadCancelled:
-            self.status = WorkerStatus.CANCELLED
+            if self.status != WorkerStatus.DELETED:
+                self.status = WorkerStatus.CANCELLED
             self._notify_update()
         except Exception as e:
-            if not self._cancelled:
+            if not self._cancelled and self.status != WorkerStatus.DELETED:
                 logger.error(f"Erro no worker {self.download_id}: {str(e)}")
                 self.status = WorkerStatus.FAILED
                 self.error_message = str(e)

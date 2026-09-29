@@ -60,6 +60,11 @@ def create_download(req: DownloadCreateRequest):
 def list_downloads():
     return orchestrator.list_downloads()
 
+@app.post("/api/v1/downloads/clear")
+def clear_downloads():
+    count = orchestrator.clear_finished_downloads()
+    return {"cleared_count": count}
+
 @app.get("/api/v1/downloads/{download_id}", response_model=DownloadProgressResponse)
 def get_download(download_id: str):
     download = orchestrator.get_download(download_id)
@@ -89,11 +94,6 @@ def delete_download(download_id: str):
             detail=f"Download {download_id} não encontrado."
         )
     return {"download_id": download_id, "status": "DELETED"}
-
-@app.post("/api/v1/downloads/clear")
-def clear_downloads():
-    count = orchestrator.clear_finished_downloads()
-    return {"cleared_count": count}
 
 if __name__ == "__main__":
     uvicorn.run(

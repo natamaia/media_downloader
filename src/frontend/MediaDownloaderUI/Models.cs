@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
+using System.Windows.Media;
 
 namespace MediaDownloaderUI
 {
@@ -120,6 +121,9 @@ namespace MediaDownloaderUI
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(DisplayStatus));
                     OnPropertyChanged(nameof(IsDeleted));
+                    OnPropertyChanged(nameof(IsNotDeleted));
+                    OnPropertyChanged(nameof(StatusColorBrush));
+                    OnPropertyChanged(nameof(DeleteButtonText));
                 }
             }
         }
@@ -174,7 +178,33 @@ namespace MediaDownloaderUI
         };
 
         [JsonIgnore]
+        public Brush StatusColorBrush
+        {
+            get
+            {
+                string hex = Status switch
+                {
+                    "DELETED" => "#EF4444",
+                    "FAILED" => "#EF4444",
+                    "CANCELLED" => "#F59E0B",
+                    "COMPLETED" => "#10B981",
+                    "DOWNLOADING" => "#10B981",
+                    "EXTRACTING" => "#3B82F6",
+                    "CONVERTING" => "#8B5CF6",
+                    _ => "#9CA3AF"
+                };
+                return (Brush)new BrushConverter().ConvertFrom(hex)!;
+            }
+        }
+
+        [JsonIgnore]
         public bool IsDeleted => Status == "DELETED";
+
+        [JsonIgnore]
+        public bool IsNotDeleted => Status != "DELETED";
+
+        [JsonIgnore]
+        public string DeleteButtonText => Status == "DELETED" ? "Deletado" : "Apagar";
 
         public void CopyFrom(DownloadProgress other)
         {
