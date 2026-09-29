@@ -26,7 +26,10 @@ class DownloadWorker:
         self.provider: str = ExtractorService.detect_provider(url)
         self.format_type: FormatType = format_type
         self.quality: str = quality
-        self.output_dir: str = output_dir or settings.DOWNLOAD_OUTPUT_DIR
+        if output_dir:
+            self.output_dir: str = output_dir
+        else:
+            self.output_dir: str = settings.DOWNLOAD_MUSIC_DIR if format_type == FormatType.MP3 else settings.DOWNLOAD_VIDEOS_DIR
         self.temp_dir: str = settings.DOWNLOAD_TEMP_DIR
         self.on_update_callback = on_update_callback
 
