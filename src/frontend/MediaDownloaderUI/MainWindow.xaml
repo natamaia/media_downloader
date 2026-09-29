@@ -56,10 +56,9 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="24">
 
-                <!-- COMPONENT 2: URL INPUT & FORMAT/QUALITY SELECTOR CARD -->
+                <!-- COMPONENT 2: URL INPUT CARD -->
                 <components:UrlInputControl x:Name="UrlInputCard"
-                                            AnalyzeRequested="UrlInputCard_AnalyzeRequested"
-                                            DownloadRequested="UrlInputCard_DownloadRequested"/>
+                                            AnalyzeRequested="UrlInputCard_AnalyzeRequested"/>
 
                 <!-- COMPONENT 3: MEDIA PREVIEW CARD -->
                 <components:MediaPreviewControl x:Name="PreviewCard" Visibility="Collapsed"/>
