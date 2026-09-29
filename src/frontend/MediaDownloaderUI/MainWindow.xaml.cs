@@ -118,7 +118,8 @@ namespace MediaDownloaderUI
         {
             try
             {
-                var downloads = await _apiClient.ListDownloadsAsync();
+                var rawDownloads = await _apiClient.ListDownloadsAsync();
+                var downloads = rawDownloads.AsEnumerable().Reverse().ToList();
 
                 // Update items in ObservableCollection without recreating collection
                 for (int i = 0; i < downloads.Count; i++)

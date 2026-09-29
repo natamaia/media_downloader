@@ -8,9 +8,9 @@
         Background="#181818" Foreground="#F3F4F6">
 
     <Window.Resources>
-        <!-- Custom 6px Thin Dark-Emerald ScrollBar Style -->
+        <!-- Custom 4px Ultra-Thin Minimalist ScrollBar Style -->
         <Style TargetType="{x:Type ScrollBar}">
-            <Setter Property="Width" Value="6"/>
+            <Setter Property="Width" Value="4"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -21,7 +21,7 @@
                                     <Thumb Background="#10B981" BorderThickness="0">
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="{x:Type Thumb}">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="3"/>
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="2"/>
                                             </ControlTemplate>
                                         </Thumb.Template>
                                     </Thumb>

@@ -45,7 +45,7 @@ class WorkerOrchestrator:
 
     def list_downloads(self) -> List[DownloadProgressResponse]:
         with self._lock:
-            return [worker.to_response() for worker in self._workers.values()]
+            return [worker.to_response() for worker in reversed(list(self._workers.values()))]
 
     def cancel_download(self, download_id: str) -> bool:
         with self._lock:
