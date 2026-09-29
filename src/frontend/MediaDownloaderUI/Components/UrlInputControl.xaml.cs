@@ -33,5 +33,10 @@ namespace MediaDownloaderUI.Components
             }
             AnalyzeRequested?.Invoke(this, url);
         }
+
+        private void BtnToggleTheme_Click(object sender, RoutedEventArgs e)
+        {
+            ThemeManager.ToggleTheme();
+        }
     }
 }

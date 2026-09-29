@@ -5,7 +5,7 @@
         Title="MediaDownloader Pro" Height="700" Width="1000"
         MinHeight="550" MinWidth="750"
         WindowStartupLocation="CenterScreen"
-        Background="#181818" Foreground="#F3F4F6">
+        Background="{DynamicResource WindowBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
 
     <Window.Resources>
         <!-- Custom 4px Ultra-Thin Minimalist ScrollBar Style -->
@@ -18,7 +18,7 @@
                         <Grid x:Name="Bg" SnapsToDevicePixels="true">
                             <Track x:Name="PART_Track" IsDirectionReversed="true" IsEnabled="{TemplateBinding IsMouseOver}">
                                 <Track.Thumb>
-                                    <Thumb Background="#10B981" BorderThickness="0">
+                                    <Thumb Background="{DynamicResource EmeraldAccentBrush}" BorderThickness="0">
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="{x:Type Thumb}">
                                                 <Border Background="{TemplateBinding Background}" CornerRadius="2"/>
@@ -33,10 +33,10 @@
             </Setter>
         </Style>
 
-        <!-- VS Code Style Card -->
+        <!-- Dynamic Card Style -->
         <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="#252526"/>
-            <Setter Property="BorderBrush" Value="#333333"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="18"/>
@@ -45,8 +45,8 @@
 
         <!-- Secondary Button Style -->
         <Style x:Key="SecondaryBtn" TargetType="Button">
-            <Setter Property="Background" Value="#333333"/>
-            <Setter Property="Foreground" Value="#F3F4F6"/>
+            <Setter Property="Background" Value="{DynamicResource BorderSubtleBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="Padding" Value="12,6"/>
@@ -65,8 +65,8 @@
 
         <!-- Delete Button Style -->
         <Style x:Key="DeleteBtn" TargetType="Button">
-            <Setter Property="Background" Value="#7F1D1D"/>
-            <Setter Property="Foreground" Value="#FECACA"/>
+            <Setter Property="Background" Value="{DynamicResource DeleteBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DeleteTextBrush}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="Padding" Value="12,6"/>
@@ -84,12 +84,12 @@
         </Style>
     </Window.Resources>
 
-    <!-- MAIN APP GRID: NO FOOTER, NO WINDOW SCROLLBAR, FULL RESPONSIVE FIT -->
+    <!-- MAIN APP GRID: FULL RESPONSIVE FIT -->
     <Grid Margin="18">
         <Grid.RowDefinitions>
             <!-- Row 0: URL Input & Analyzed Preview (Auto Height) -->
             <RowDefinition Height="Auto"/>
-            <!-- Row 1: Parent Queue Container Card (Expands fluidly to fill window height) -->
+            <!-- Row 1: Parent Queue Container Card (Expands fluidly) -->
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -103,7 +103,7 @@
             <components:MediaPreviewControl x:Name="PreviewCard" Visibility="Collapsed"/>
         </StackPanel>
 
-        <!-- PARENT QUEUE CONTAINER CARD (Expands fluidly without forcing a window scrollbar) -->
+        <!-- PARENT QUEUE CONTAINER CARD -->
         <Border Grid.Row="1" Style="{StaticResource CardStyle}" VerticalAlignment="Stretch" Margin="0,0,0,0">
             <Grid>
                 <Grid.RowDefinitions>
@@ -115,17 +115,17 @@
 
                 <!-- Queue Card Title Bar -->
                 <Grid Grid.Row="0" Margin="0,0,0,12">
-                    <TextBlock Text="Fila de Downloads e Workers" FontSize="15" FontWeight="Bold" Foreground="#F3F4F6"/>
-                    <TextBlock x:Name="TxtWorkerCount" Text="0 Workers Ativos" FontSize="11" Foreground="#34D399" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    <TextBlock Text="Fila de Downloads e Workers" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock x:Name="TxtWorkerCount" Text="0 Workers Ativos" FontSize="11" Foreground="{DynamicResource EmeraldAccentBrush}" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                 </Grid>
 
-                <!-- INNER FLUID SCROLLVIEWER FOR DOWNLOAD CARDS (Custom 6px Emerald ScrollBar) -->
+                <!-- INNER FLUID SCROLLVIEWER FOR DOWNLOAD CARDS -->
                 <ScrollViewer Grid.Row="1" VerticalAlignment="Stretch" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <Grid>
                         <ItemsControl x:Name="LstDownloads">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#1E1E1E" BorderBrush="#333333" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,8,10">
+                                    <Border Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,8,10">
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto"/>
@@ -136,29 +136,29 @@
                                             <!-- Row 1: Title, Provider, Status Badge -->
                                             <Grid Grid.Row="0" Margin="0,0,0,6">
                                                 <StackPanel Orientation="Horizontal">
-                                                    <Border Background="#064E3B" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
-                                                        <TextBlock Text="{Binding Provider}" FontSize="10" FontWeight="Bold" Foreground="#34D399"/>
+                                                    <Border Background="{DynamicResource BadgeBackgroundBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                                                        <TextBlock Text="{Binding Provider}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BadgeTextBrush}"/>
                                                     </Border>
-                                                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold" Foreground="#F3F4F6"/>
+                                                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                                 </StackPanel>
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                    <TextBlock Text="{Binding Quality}" FontSize="11" Foreground="#9CA3AF" Margin="0,0,10,0"/>
-                                                    <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="Bold" Foreground="#10B981"/>
+                                                    <TextBlock Text="{Binding Quality}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
+                                                    <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource EmeraldAccentBrush}"/>
                                                 </StackPanel>
                                             </Grid>
 
                                             <!-- Row 2: Emerald Progress Bar -->
-                                            <ProgressBar Grid.Row="1" Height="6" Value="{Binding ProgressPercent}" Maximum="100" Background="#252526" Foreground="#10B981" Margin="0,0,0,6"/>
+                                            <ProgressBar Grid.Row="1" Height="6" Value="{Binding ProgressPercent}" Maximum="100" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource EmeraldAccentBrush}" Margin="0,0,0,6"/>
 
                                             <!-- Row 3: Speed, ETA, Action Buttons -->
                                             <Grid Grid.Row="2">
                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock Text="Progresso: " FontSize="11" Foreground="#9CA3AF"/>
-                                                    <TextBlock Text="{Binding ProgressPercent, StringFormat='{}{0}%'}" FontSize="11" FontWeight="Bold" Foreground="#F3F4F6" Margin="0,0,12,0"/>
-                                                    <TextBlock Text="Velocidade: " FontSize="11" Foreground="#9CA3AF"/>
-                                                    <TextBlock Text="{Binding DownloadSpeed}" FontSize="11" FontWeight="Bold" Foreground="#34D399" Margin="0,0,12,0"/>
-                                                    <TextBlock Text="ETA: " FontSize="11" Foreground="#9CA3AF"/>
-                                                    <TextBlock Text="{Binding EtaSeconds, StringFormat='{}{0}s'}" FontSize="11" Foreground="#F3F4F6"/>
+                                                    <TextBlock Text="Progresso: " FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                    <TextBlock Text="{Binding ProgressPercent, StringFormat='{}{0}%'}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,12,0"/>
+                                                    <TextBlock Text="Velocidade: " FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                    <TextBlock Text="{Binding DownloadSpeed}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource EmeraldAccentBrush}" Margin="0,0,12,0"/>
+                                                    <TextBlock Text="ETA: " FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                    <TextBlock Text="{Binding EtaSeconds, StringFormat='{}{0}s'}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                                 </StackPanel>
 
                                                 <!-- Action Buttons: Abrir Pasta e Apagar -->
@@ -173,7 +173,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <TextBlock x:Name="TxtEmptyList" Text="Nenhum download ativo no momento." FontSize="12" Foreground="#6B7280" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,30"/>
+                        <TextBlock x:Name="TxtEmptyList" Text="Nenhum download ativo no momento." FontSize="12" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,30"/>
                     </Grid>
                 </ScrollViewer>
             </Grid>
