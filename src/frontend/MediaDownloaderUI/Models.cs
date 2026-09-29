@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
 namespace MediaDownloaderUI
@@ -42,43 +44,120 @@ namespace MediaDownloaderUI
         public string? OutputDir { get; set; }
     }
 
-    public class DownloadProgress
+    public class DownloadProgress : INotifyPropertyChanged
     {
+        private string _downloadId = string.Empty;
+        private string _url = string.Empty;
+        private string _provider = "Generic";
+        private string _title = "Aguardando...";
+        private string _formatType = "mp4";
+        private string _quality = "1080p";
+        private string _status = "PENDING";
+        private double _progressPercent;
+        private string _downloadSpeed = "0 KB/s";
+        private int _etaSeconds;
+        private string? _filePath;
+        private string? _errorMessage;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
         [JsonPropertyName("download_id")]
-        public string DownloadId { get; set; } = string.Empty;
+        public string DownloadId
+        {
+            get => _downloadId;
+            set { if (_downloadId != value) { _downloadId = value; OnPropertyChanged(); } }
+        }
 
         [JsonPropertyName("url")]
-        public string Url { get; set; } = string.Empty;
+        public string Url
+        {
+            get => _url;
+            set { if (_url != value) { _url = value; OnPropertyChanged(); } }
+        }
 
         [JsonPropertyName("provider")]
-        public string Provider { get; set; } = "Generic";
+        public string Provider
+        {
+            get => _provider;
+            set { if (_provider != value) { _provider = value; OnPropertyChanged(); } }
+        }
 
         [JsonPropertyName("title")]
-        public string Title { get; set; } = "Aguardando...";
+        public string Title
+        {
+            get => _title;
+            set { if (_title != value) { _title = value; OnPropertyChanged(); } }
+        }
 
         [JsonPropertyName("format_type")]
-        public string FormatType { get; set; } = "mp4";
+        public string FormatType
+        {
+            get => _formatType;
+            set { if (_formatType != value) { _formatType = value; OnPropertyChanged(); } }
+        }
 
         [JsonPropertyName("quality")]
-        public string Quality { get; set; } = "1080p";
+        public string Quality
+        {
+            get => _quality;
+            set { if (_quality != value) { _quality = value; OnPropertyChanged(); } }
+        }
 
         [JsonPropertyName("status")]
-        public string Status { get; set; } = "PENDING";
+        public string Status
+        {
+            get => _status;
+            set
+            {
+                if (_status != value)
+                {
+                    _status = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DisplayStatus));
+                    OnPropertyChanged(nameof(IsDeleted));
+                }
+            }
+        }
 
         [JsonPropertyName("progress_percent")]
-        public double ProgressPercent { get; set; }
+        public double ProgressPercent
+        {
+            get => _progressPercent;
+            set { if (_progressPercent != value) { _progressPercent = value; OnPropertyChanged(); } }
+        }
 
         [JsonPropertyName("download_speed")]
-        public string DownloadSpeed { get; set; } = "0 KB/s";
+        public string DownloadSpeed
+        {
+            get => _downloadSpeed;
+            set { if (_downloadSpeed != value) { _downloadSpeed = value; OnPropertyChanged(); } }
+        }
 
         [JsonPropertyName("eta_seconds")]
-        public int EtaSeconds { get; set; }
+        public int EtaSeconds
+        {
+            get => _etaSeconds;
+            set { if (_etaSeconds != value) { _etaSeconds = value; OnPropertyChanged(); } }
+        }
 
         [JsonPropertyName("file_path")]
-        public string? FilePath { get; set; }
+        public string? FilePath
+        {
+            get => _filePath;
+            set { if (_filePath != value) { _filePath = value; OnPropertyChanged(); } }
+        }
 
         [JsonPropertyName("error_message")]
-        public string? ErrorMessage { get; set; }
+        public string? ErrorMessage
+        {
+            get => _errorMessage;
+            set { if (_errorMessage != value) { _errorMessage = value; OnPropertyChanged(); } }
+        }
 
         [JsonIgnore]
         public string DisplayStatus => Status switch
@@ -96,5 +175,20 @@ namespace MediaDownloaderUI
 
         [JsonIgnore]
         public bool IsDeleted => Status == "DELETED";
+
+        public void CopyFrom(DownloadProgress other)
+        {
+            Url = other.Url;
+            Provider = other.Provider;
+            Title = other.Title;
+            FormatType = other.FormatType;
+            Quality = other.Quality;
+            Status = other.Status;
+            ProgressPercent = other.ProgressPercent;
+            DownloadSpeed = other.DownloadSpeed;
+            EtaSeconds = other.EtaSeconds;
+            FilePath = other.FilePath;
+            ErrorMessage = other.ErrorMessage;
+        }
     }
 }

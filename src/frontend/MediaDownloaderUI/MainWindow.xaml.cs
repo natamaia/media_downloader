@@ -127,27 +127,48 @@ namespace MediaDownloaderUI
                 }
                 else
                 {
-                    // Update items in ObservableCollection without recreating collection
+                    // Map existing items by ID for fast in-place property updates
+                    var existingDict = _downloadsCollection.ToDictionary(d => d.DownloadId);
+                    var newIds = new HashSet<string>(downloads.Select(d => d.DownloadId));
+
+                    // 1. Remove items no longer present in backend response
+                    for (int i = _downloadsCollection.Count - 1; i >= 0; i--)
+                    {
+                        if (!newIds.Contains(_downloadsCollection[i].DownloadId))
+                        {
+                            _downloadsCollection.RemoveAt(i);
+                        }
+                    }
+
+                    // 2. Add or update items in reactive order
                     for (int i = 0; i < downloads.Count; i++)
                     {
-                        var item = downloads[i];
-                        if (i < _downloadsCollection.Count)
+                        var newItem = downloads[i];
+                        if (existingDict.TryGetValue(newItem.DownloadId, out var existingItem))
                         {
-                            _downloadsCollection[i] = item;
+                            existingItem.CopyFrom(newItem);
+                            
+                            int currentIdx = _downloadsCollection.IndexOf(existingItem);
+                            if (currentIdx != i && currentIdx >= 0 && i < _downloadsCollection.Count)
+                            {
+                                _downloadsCollection.Move(currentIdx, i);
+                            }
                         }
                         else
                         {
-                            _downloadsCollection.Add(item);
+                            if (i <= _downloadsCollection.Count)
+                            {
+                                _downloadsCollection.Insert(i, newItem);
+                            }
+                            else
+                            {
+                                _downloadsCollection.Add(newItem);
+                            }
                         }
-                    }
-
-                    while (_downloadsCollection.Count > downloads.Count)
-                    {
-                        _downloadsCollection.RemoveAt(_downloadsCollection.Count - 1);
                     }
                 }
 
-                int activeCount = _downloadsCollection.Count(d => d.Status == "EXTRACTING" || d.Status == "DOWNLOADING" || d.Status == "CONVERTING");
+                int activeCount = _downloadsCollection.Count(d => d.Status is "EXTRACTING" or "DOWNLOADING" or "CONVERTING");
                 TxtWorkerCount.Text = $"{activeCount} Workers Ativos";
                 TxtEmptyList.Visibility = (_downloadsCollection.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
             }
@@ -171,12 +192,13 @@ namespace MediaDownloaderUI
 
         private async void BtnClearDownloads_Click(object sender, RoutedEventArgs e)
         {
+            // Instantly clear UI for snappy response
+            _downloadsCollection.Clear();
+            TxtWorkerCount.Text = "0 Workers Ativos";
+            TxtEmptyList.Visibility = Visibility.Visible;
+
             bool success = await _apiClient.ClearDownloadsAsync();
-            if (success)
-            {
-                _downloadsCollection.Clear();
-                RefreshDownloadsList();
-            }
+            RefreshDownloadsList();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
