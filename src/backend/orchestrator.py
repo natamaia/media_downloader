@@ -78,13 +78,15 @@ class WorkerOrchestrator:
 
     def clear_finished_downloads(self) -> int:
         with self._lock:
-            to_delete = [
-                download_id for download_id, worker in self._workers.items()
-                if worker.status in (WorkerStatus.COMPLETED, WorkerStatus.FAILED, WorkerStatus.CANCELLED, WorkerStatus.DELETED)
-            ]
+            to_delete = list(self._workers.keys())
             for download_id in to_delete:
+                worker = self._workers[download_id]
+                try:
+                    worker.cancel()
+                except Exception as e:
+                    logger.warning(f"Erro ao cancelar worker {download_id}: {e}")
                 del self._workers[download_id]
-            logger.info(f"{len(to_delete)} tarefas finalizadas/limpas do histórico de downloads.")
+            logger.info(f"{len(to_delete)} tarefas limpas do histórico de downloads.")
             return len(to_delete)
 
     def get_active_count(self) -> int:

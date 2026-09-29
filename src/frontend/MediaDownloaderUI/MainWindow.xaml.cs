@@ -121,23 +121,30 @@ namespace MediaDownloaderUI
                 var rawDownloads = await _apiClient.ListDownloadsAsync();
                 var downloads = rawDownloads.AsEnumerable().Reverse().ToList();
 
-                // Update items in ObservableCollection without recreating collection
-                for (int i = 0; i < downloads.Count; i++)
+                if (downloads.Count == 0)
                 {
-                    var item = downloads[i];
-                    if (i < _downloadsCollection.Count)
-                    {
-                        _downloadsCollection[i] = item;
-                    }
-                    else
-                    {
-                        _downloadsCollection.Add(item);
-                    }
+                    _downloadsCollection.Clear();
                 }
-
-                while (_downloadsCollection.Count > downloads.Count)
+                else
                 {
-                    _downloadsCollection.RemoveAt(_downloadsCollection.Count - 1);
+                    // Update items in ObservableCollection without recreating collection
+                    for (int i = 0; i < downloads.Count; i++)
+                    {
+                        var item = downloads[i];
+                        if (i < _downloadsCollection.Count)
+                        {
+                            _downloadsCollection[i] = item;
+                        }
+                        else
+                        {
+                            _downloadsCollection.Add(item);
+                        }
+                    }
+
+                    while (_downloadsCollection.Count > downloads.Count)
+                    {
+                        _downloadsCollection.RemoveAt(_downloadsCollection.Count - 1);
+                    }
                 }
 
                 int activeCount = _downloadsCollection.Count(d => d.Status == "EXTRACTING" || d.Status == "DOWNLOADING" || d.Status == "CONVERTING");
