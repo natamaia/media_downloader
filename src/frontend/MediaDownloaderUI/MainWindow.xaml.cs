@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -12,11 +13,16 @@ namespace MediaDownloaderUI
     {
         private readonly ApiClient _apiClient;
         private readonly DispatcherTimer _pollTimer;
+        private readonly ObservableCollection<DownloadProgress> _downloadsCollection;
 
         public MainWindow()
         {
             InitializeComponent();
             _apiClient = new ApiClient();
+            _downloadsCollection = new ObservableCollection<DownloadProgress>();
+
+            // Bind ObservableCollection to prevent UI re-render glitching
+            LstDownloads.ItemsSource = _downloadsCollection;
 
             // Set OS System paths in Header Component
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -24,7 +30,10 @@ namespace MediaDownloaderUI
             string videosPath = Path.Combine(userProfile, "Videos", "app_videos");
             HeaderControl.SetPaths(musicPath, videosPath);
 
-            // Timer for progress polling from backend API
+            // Connect DownloadRequested event from PreviewCard
+            PreviewCard.DownloadRequested += PreviewCard_DownloadRequested;
+
+            // Polling timer for real-time progress updates
             _pollTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(1)
@@ -39,7 +48,6 @@ namespace MediaDownloaderUI
 
         private async void InitBackendAndHealthAsync()
         {
-            // Non-blocking start of Python backend server
             await BackendManager.EnsureBackendRunningAsync();
 
             bool isOnline = await _apiClient.CheckHealthAsync();
@@ -62,33 +70,50 @@ namespace MediaDownloaderUI
             PreviewCard.Visibility = Visibility.Visible;
             PreviewCard.SetLoading();
 
-            var info = await _apiClient.GetVideoInfoAsync(url);
-            if (info != null)
+            try
             {
-                PreviewCard.SetInfo(info);
-                UrlInputCard.PopulateQualities(info.Qualities);
-
-                // Auto-detect audio vs video provider to toggle MP3/MP4 selection automatically
-                bool isAudioProvider = info.Provider is "Spotify" or "Deezer" or "YouTube Music" or "SoundCloud";
-                UrlInputCard.SetSelectedFormat(isAudioProvider);
+                var info = await _apiClient.GetVideoInfoAsync(url);
+                if (info != null)
+                {
+                    PreviewCard.SetInfo(info);
+                }
+                else
+                {
+                    MessageBox.Show("Não foi possível analisar o link informado. Verifique se a URL está acessível.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    PreviewCard.Visibility = Visibility.Collapsed;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                MessageBox.Show("Não foi possível analisar o link informado. Verifique a URL.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Erro durante a análise: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
                 PreviewCard.Visibility = Visibility.Collapsed;
             }
         }
 
-        private async void UrlInputCard_DownloadRequested(object? sender, (string url, string formatType, string quality) args)
+        private async void PreviewCard_DownloadRequested(object? sender, (string formatType, string quality) args)
         {
-            var download = await _apiClient.CreateDownloadAsync(args.url, args.formatType, args.quality);
-            if (download != null)
+            string url = UrlInputCard.GetUrl();
+            if (string.IsNullOrEmpty(url) || url.StartsWith("Cole aqui"))
             {
-                RefreshDownloadsList();
+                MessageBox.Show("Por favor, cole um link válido.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
-            else
+
+            try
             {
-                MessageBox.Show("Erro ao enviar tarefa para o orquestrador de workers.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                var download = await _apiClient.CreateDownloadAsync(url, args.formatType, args.quality);
+                if (download != null)
+                {
+                    RefreshDownloadsList();
+                }
+                else
+                {
+                    MessageBox.Show("Erro ao enviar tarefa para o orquestrador de workers.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erro ao iniciar download: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -99,12 +124,37 @@ namespace MediaDownloaderUI
 
         private async void RefreshDownloadsList()
         {
-            var downloads = await _apiClient.ListDownloadsAsync();
-            LstDownloads.ItemsSource = downloads;
+            try
+            {
+                var downloads = await _apiClient.ListDownloadsAsync();
 
-            int activeCount = downloads.Count(d => d.Status == "EXTRACTING" || d.Status == "DOWNLOADING" || d.Status == "CONVERTING");
-            TxtWorkerCount.Text = $"{activeCount} Workers Ativos";
-            TxtEmptyList.Visibility = (downloads.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
+                // Update items in ObservableCollection without recreating collection to eliminate UI glitches
+                for (int i = 0; i < downloads.Count; i++)
+                {
+                    var item = downloads[i];
+                    if (i < _downloadsCollection.Count)
+                    {
+                        _downloadsCollection[i] = item;
+                    }
+                    else
+                    {
+                        _downloadsCollection.Add(item);
+                    }
+                }
+
+                while (_downloadsCollection.Count > downloads.Count)
+                {
+                    _downloadsCollection.RemoveAt(_downloadsCollection.Count - 1);
+                }
+
+                int activeCount = _downloadsCollection.Count(d => d.Status == "EXTRACTING" || d.Status == "DOWNLOADING" || d.Status == "CONVERTING");
+                TxtWorkerCount.Text = $"{activeCount} Workers Ativos";
+                TxtEmptyList.Visibility = (_downloadsCollection.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error updating downloads UI list: {ex.Message}");
+            }
         }
 
         private async void BtnCancel_Click(object sender, RoutedEventArgs e)
@@ -122,7 +172,7 @@ namespace MediaDownloaderUI
         private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
         {
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string targetFolder = UrlInputCard.IsAudioSelected
+            string targetFolder = PreviewCard.IsAudioSelected
                 ? Path.Combine(userProfile, "Music", "app_music")
                 : Path.Combine(userProfile, "Videos", "app_videos");
 
