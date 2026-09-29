@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Windows;
 using Microsoft.Win32;
 
@@ -45,27 +44,22 @@ namespace MediaDownloaderUI
         public static void ApplyTheme(bool isLight)
         {
             IsLightTheme = isLight;
-            string themeUri = isLight
-                ? "pack://application:,,,/MediaDownloaderUI;component/Themes/LightTheme.xaml"
-                : "pack://application:,,,/MediaDownloaderUI;component/Themes/DarkTheme.xaml";
+            string themeFile = isLight ? "Themes/LightTheme.xaml" : "Themes/DarkTheme.xaml";
 
             try
             {
-                var newThemeDict = new ResourceDictionary { Source = new Uri(themeUri, UriKind.Absolute) };
-
-                var appDicts = Application.Current.Resources.MergedDictionaries;
-                var existingTheme = appDicts.FirstOrDefault(d => d.Source != null && (d.Source.OriginalString.Contains("DarkTheme") || d.Source.OriginalString.Contains("LightTheme")));
-
-                if (existingTheme != null)
+                var newThemeDict = new ResourceDictionary { Source = new Uri(themeFile, UriKind.Relative) };
+                
+                if (Application.Current != null)
                 {
-                    appDicts.Remove(existingTheme);
+                    var appDicts = Application.Current.Resources.MergedDictionaries;
+                    appDicts.Clear();
+                    appDicts.Add(newThemeDict);
                 }
-
-                appDicts.Add(newThemeDict);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to apply theme dict ({themeUri}): {ex.Message}");
+                Debug.WriteLine($"Failed to apply theme dict ({themeFile}): {ex.Message}");
             }
         }
     }

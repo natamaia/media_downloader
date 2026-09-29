@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 
 namespace MediaDownloaderUI
@@ -7,7 +8,14 @@ namespace MediaDownloaderUI
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
-            ThemeManager.InitializeTheme();
+            try
+            {
+                ThemeManager.InitializeTheme();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Startup Theme Init Error: {ex.Message}");
+            }
         }
     }
 }
