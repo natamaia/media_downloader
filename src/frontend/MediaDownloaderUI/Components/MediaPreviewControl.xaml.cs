@@ -87,7 +87,10 @@ namespace MediaDownloaderUI.Components
             CmbQuality.Items.Clear();
             foreach (var q in qualities)
             {
-                CmbQuality.Items.Add(new ComboBoxItem { Content = q });
+                var item = new ComboBoxItem { Content = q };
+                item.SetResourceReference(Control.ForegroundProperty, "TextPrimaryBrush");
+                item.SetResourceReference(Control.BackgroundProperty, "CardBackgroundBrush");
+                CmbQuality.Items.Add(item);
             }
             CmbQuality.SelectedIndex = 0;
         }

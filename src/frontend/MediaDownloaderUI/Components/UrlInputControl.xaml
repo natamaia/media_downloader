@@ -56,10 +56,9 @@
     <Border Style="{StaticResource CardStyle}">
         <StackPanel>
             <Grid Margin="0,0,0,8">
-                <TextBlock Text="MediaDownloader Pro" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock Text="MediaDownloader" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button x:Name="BtnToggleTheme" Content="🌓 Tema" Style="{StaticResource SecondaryBtn}" Padding="8,4" Margin="0,0,8,0" Click="BtnToggleTheme_Click"/>
-                    <TextBlock Text="Copie e cole o link para baixar vídeo ou áudio" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                    <Button x:Name="BtnToggleTheme" Content="🌓" Style="{StaticResource SecondaryBtn}" Padding="8,4" Margin="0,0,8,0" Click="BtnToggleTheme_Click"/>
                 </StackPanel>
             </Grid>
             
