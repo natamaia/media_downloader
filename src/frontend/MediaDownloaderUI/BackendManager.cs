@@ -31,36 +31,63 @@ namespace MediaDownloaderUI
                 try
                 {
                     string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                    DirectoryInfo? dir = new DirectoryInfo(baseDir);
-                    string projectRoot = string.Empty;
-
-                    while (dir != null)
+                    
+                    // Check for standalone compiled backend executable first (Production mode)
+                    string standaloneExeInBase = Path.Combine(baseDir, "MediaDownloaderBackend.exe");
+                    string standaloneExeInSub = Path.Combine(baseDir, "backend", "MediaDownloaderBackend.exe");
+                    
+                    ProcessStartInfo psi;
+                    if (File.Exists(standaloneExeInBase))
                     {
-                        if (File.Exists(Path.Combine(dir.FullName, "requirements.txt")) &&
-                            Directory.Exists(Path.Combine(dir.FullName, "src", "backend")))
+                        psi = new ProcessStartInfo
                         {
-                            projectRoot = dir.FullName;
-                            break;
+                            FileName = standaloneExeInBase,
+                            WorkingDirectory = baseDir,
+                            CreateNoWindow = true,
+                            UseShellExecute = false
+                        };
+                    }
+                    else if (File.Exists(standaloneExeInSub))
+                    {
+                        psi = new ProcessStartInfo
+                        {
+                            FileName = standaloneExeInSub,
+                            WorkingDirectory = Path.Combine(baseDir, "backend"),
+                            CreateNoWindow = true,
+                            UseShellExecute = false
+                        };
+                    }
+                    else
+                    {
+                        // Dev mode fallback using local Python environment
+                        DirectoryInfo? dir = new DirectoryInfo(baseDir);
+                        string projectRoot = string.Empty;
+
+                        while (dir != null)
+                        {
+                            if (File.Exists(Path.Combine(dir.FullName, "requirements.txt")) &&
+                                Directory.Exists(Path.Combine(dir.FullName, "src", "backend")))
+                            {
+                                projectRoot = dir.FullName;
+                                break;
+                            }
+                            dir = dir.Parent;
                         }
-                        dir = dir.Parent;
+
+                        if (string.IsNullOrEmpty(projectRoot))
+                        {
+                            projectRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", ".."));
+                        }
+
+                        psi = new ProcessStartInfo
+                        {
+                            FileName = "python",
+                            Arguments = "-m src.backend.main",
+                            WorkingDirectory = projectRoot,
+                            CreateNoWindow = true,
+                            UseShellExecute = false
+                        };
                     }
-
-                    if (string.IsNullOrEmpty(projectRoot))
-                    {
-                        projectRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", ".."));
-                    }
-
-                    // Try python or py executable
-                    string pythonCmd = "python";
-
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = pythonCmd,
-                        Arguments = "-m src.backend.main",
-                        WorkingDirectory = projectRoot,
-                        CreateNoWindow = true,
-                        UseShellExecute = false
-                    };
 
                     _backendProcess = Process.Start(psi);
 

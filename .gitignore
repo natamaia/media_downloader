@@ -46,3 +46,4 @@ obj/
 # Download output directory
 output/
 downloads/
+installer/output/
