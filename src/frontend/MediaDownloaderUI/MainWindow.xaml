@@ -5,6 +5,7 @@
         Title="MediaDownloader Pro" Height="700" Width="1000"
         MinHeight="550" MinWidth="750"
         WindowStartupLocation="CenterScreen"
+        Icon="app_icon.ico"
         Loaded="Window_Loaded" StateChanged="Window_StateChanged"
         Background="{DynamicResource WindowBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}">
 

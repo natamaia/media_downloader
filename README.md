@@ -1,85 +1,116 @@
-# ⚡ MediaDownloader Pro
+# MediaDownloader Pro
 
-**MediaDownloader Pro** é uma aplicação desktop nativa para Windows 10 e 11, projetada com uma **arquitetura descentralizada de workers** e interface gráfica moderna estilo *Tailwind Slate* com **arquitetura de componentes reutilizáveis**.
+**MediaDownloader Pro** é uma aplicação desktop para Windows (10 e 11) desenvolvida com interface gráfica nativa em C# WPF (.NET 10) e arquitetura de processamento assíncrono em Python (FastAPI + yt-dlp).
 
-Permite baixar vídeos e áudios a partir de links de múltiplos hospedadores (YouTube, YouTube Music, Spotify, Deezer, Instagram, SoundCloud, TikTok, Vimeo, entre outros), com seleção automática de formato (MP4 / MP3) e salvamento em diretórios nativos.
+O sistema suporta a extração e o download de mídias a partir de múltiplos provedores (YouTube, YouTube Music, Spotify, Deezer, Instagram, TikTok, Vimeo, entre outros), com seleção automática de formato de saída (MP4 e MP3) e gerenciamento de arquivos em disco.
 
 ---
 
-## 🏗️ Arquitetura do Sistema
+## 1. Arquitetura do Sistema
 
-```
+A aplicação adota o modelo cliente-servidor descentralizado em ambiente local:
+
+```text
 +-------------------------------------------------------------+
-|                C# WPF UI (Windows 10/11 Native)             |
-|  - Componentes XAML Reutilizáveis (Header, Input, Preview)  |
-|  - Troca Automática de Formato por Tipo (MP3/MP4)           |
-|  - Auto-start Não-Bloqueante via BackendManager.cs          |
-|  - Polling em Tempo Real de Workers e Progresso             |
+|                 Interface Gráfica (C# WPF)                  |
+|  - Componentes XAML Reutilizáveis (Input, Preview, List)    |
+|  - Gerenciamento de Temas (Claro / Escuro)                  |
+|  - Auto-start Assíncrono via BackendManager.cs              |
+|  - Animações Interativas e Suavização de Barra de Progresso |
 +------------------------------+------------------------------+
                                |
                    HTTP / REST (http://127.0.0.1:8000)
                                |
 +------------------------------v------------------------------+
-|             Internal Controller API (FastAPI)               |
-|  - Endpoints /health, /api/v1/info, /api/v1/downloads       |
+|               API Interna Controller (FastAPI)              |
+|  - Endpoints REST (/health, /api/v1/info, /api/v1/downloads)|
 +------------------------------+------------------------------+
                                |
-                   WorkerOrchestrator Pool
+                     WorkerOrchestrator Pool
                                |
      +-------------------------+-------------------------+
      |                         |                         |
 +----v----+               +----v----+               +----v----+
 | Worker  |               | Worker  |               | Worker  |
-| Contr. 1|               | Contr. 2|               | Contr. N|
+| Inst. 1 |               | Inst. 2 |               | Inst. N |
 +----+----+               +----+----+               +----+----+
      |                         |                         |
- (yt-dlp)                  (yt-dlp)                  (yt-dlp)
+  (yt-dlp)                  (yt-dlp)                  (yt-dlp)
 ```
 
 ---
 
-## 📂 Diretórios de Destino Automáticos
+## 2. Recursos Principais
 
-O aplicativo altera automaticamente o formato selecionado (MP3 ou MP4) de acordo com o provedor identificado:
-- **Áudios/Músicas (Spotify, Deezer, YT Music)**: Seleção automática de **MP3** -> Salvos em `%USERPROFILE%\Music\app_music\`
-- **Vídeos (YouTube, Instagram)**: Seleção de **MP4** -> Salvos em `%USERPROFILE%\Videos\app_videos\`
+- **Seleção Automática de Formatos**: Músicas e áudios (Spotify, Deezer, YouTube Music) são direcionados para o formato **MP3**, salvos no diretório `%USERPROFILE%\Music\app_music\`. Vídeos são direcionados para o formato **MP4**, salvos em `%USERPROFILE%\Videos\app_videos\`.
+- **Verificação de Arquivos Existentes**: Identifica previamente se o arquivo de mídia já se encontra no diretório de destino, informando o status **ARQUIVO EXISTENTE** sem duplicar o download ou gerar erros.
+- **Remoção Segura de Mídia**: O botão de exclusão altera o status da tarefa para **DELETADO** e remove o arquivo do disco rígido.
+- **Interface Responsiva**: Animações de entrada, scroll suavizado e progresso interpolado.
 
 ---
 
-## 🛠️ Comandos para Rodar e Desenvolver
+## 3. Ambientes de Execução e Desenvolvimento
 
-> ⚠️ **Aviso de Navegação**: Se você já estiver dentro do diretório `src/frontend/MediaDownloaderUI`, execute os comandos do .NET diretamente sem repetir o `cd`.
+### Pré-requisitos
+- .NET 10.0 SDK (ou runtime compatível no Windows)
+- Python 3.10 ou superior
+- FFmpeg (opcional, para conversões avançadas)
 
-### 1. Instalação das Dependências do Backend
+### Instalação de Dependências do Backend
 ```powershell
 pip install -r requirements.txt
 ```
 
-### 2. Modo Desenvolvimento com Hot-Reload (dotnet watch run)
-Monitora alterações no código XAML/C# e recompila automaticamente:
-```powershell
-# Certifique-se de estar na pasta src/frontend/MediaDownloaderUI
-dotnet watch run
-```
+### Execução em Modo de Desenvolvimento (Watch Mode)
 
-### 3. Modo Execução Direta (Release / Executável)
-```powershell
-dotnet run
-```
+- **Interface WPF (Hot Reload)**:
+  ```powershell
+  dotnet watch run --project src/frontend/MediaDownloaderUI/MediaDownloaderUI.csproj
+  ```
+
+- **Backend Controller (Auto Reload)**:
+  ```powershell
+  uvicorn src.backend.main:app --reload
+  ```
 
 ---
 
-## 📁 Estrutura de Componentes da UI
+## 4. Geração do Executável e Instalador
 
+A compilação da aplicação e empacotamento no assistente de instalação (Inno Setup) é automatizada pelo script PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build_installer.ps1
 ```
-src/frontend/MediaDownloaderUI/
-├── Components/
-│   ├── HeaderBarControl.xaml        # Componente de cabeçalho e status da API
-│   ├── UrlInputControl.xaml         # Componente de input, seleção e auto-troca de formato
-│   └── MediaPreviewControl.xaml     # Componente de pré-visualização de metadados
-├── ApiClient.cs                     # Cliente HTTP para a API interna
-├── BackendManager.cs                # Gerenciador assíncrono do backend Python
-├── Models.cs                        # Modelos de dados C#
-├── MainWindow.xaml                  # Janela principal que orquestra os componentes
-└── MainWindow.xaml.cs
+
+O instalador resultante será gerado em:
+`installer\output\MediaDownloaderPro_Setup_v1.0.0.exe`
+
+---
+
+## 5. Estrutura do Projeto
+
+```text
+media_downloader/
+├── installer/
+│   ├── app_icon.ico                 # Ícone do assistente de instalação
+│   ├── setup.iss                    # Script Inno Setup 6
+│   └── output/                      # Executável de instalação compilado
+├── src/
+│   ├── backend/
+│   │   ├── config.py                # Configurações do sistema
+│   │   ├── extractor.py             # Serviços de extração e oEmbed
+│   │   ├── main.py                  # API FastAPI e rotas REST
+│   │   ├── models.py                # Modelos de dados Pydantic
+│   │   ├── orchestrator.py          # Gerenciador da fila e pool de workers
+│   │   └── worker.py                # Threads de download assíncrono (yt-dlp)
+│   └── frontend/MediaDownloaderUI/
+│       ├── Components/              # Componentes XAML reutilizáveis e controles suaves
+│       ├── ApiClient.cs             # Cliente HTTP para comunicação interna
+│       ├── BackendManager.cs        # Execução assíncrona do backend Python
+│       ├── Models.cs                # Modelos de dados WPF e Notificação de Propriedades
+│       ├── MainWindow.xaml          # Interface principal
+│       └── MainWindow.xaml.cs
+├── build_installer.ps1              # Script de automação do build e empacotamento
+└── requirements.txt                 # Dependências Python
 ```
