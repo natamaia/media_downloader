@@ -7,7 +7,12 @@ Write-Host "2/4. Publicando o Frontend C# WPF (.NET 10 Release)..." -ForegroundC
 dotnet publish src/frontend/MediaDownloaderUI/MediaDownloaderUI.csproj -c Release -r win-x64 --self-contained true
 
 Write-Host "3/4. Empacotando Backend junto com Frontend..." -ForegroundColor Cyan
-Copy-Item -Path "dist\MediaDownloaderBackend" -Destination "src\frontend\MediaDownloaderUI\bin\Release\net10.0-windows\win-x64\publish\backend" -Recurse -Force
+$publishBackendDir = "src\frontend\MediaDownloaderUI\bin\Release\net10.0-windows\win-x64\publish\backend"
+if (Test-Path $publishBackendDir) {
+    Remove-Item -Path $publishBackendDir -Recurse -Force
+}
+New-Item -ItemType Directory -Path $publishBackendDir -Force
+Copy-Item -Path "dist\MediaDownloaderBackend\*" -Destination $publishBackendDir -Recurse -Force
 
 Write-Host "4/4. Gerando o Instalador Executável Wizard (Inno Setup)..." -ForegroundColor Cyan
 $isccPath = "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"

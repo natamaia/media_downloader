@@ -35,6 +35,7 @@ namespace MediaDownloaderUI
                     // Check for standalone compiled backend executable first (Production mode)
                     string standaloneExeInBase = Path.Combine(baseDir, "MediaDownloaderBackend.exe");
                     string standaloneExeInSub = Path.Combine(baseDir, "backend", "MediaDownloaderBackend.exe");
+                    string standaloneExeInNested = Path.Combine(baseDir, "backend", "MediaDownloaderBackend", "MediaDownloaderBackend.exe");
                     
                     ProcessStartInfo psi;
                     if (File.Exists(standaloneExeInBase))
@@ -53,6 +54,16 @@ namespace MediaDownloaderUI
                         {
                             FileName = standaloneExeInSub,
                             WorkingDirectory = Path.Combine(baseDir, "backend"),
+                            CreateNoWindow = true,
+                            UseShellExecute = false
+                        };
+                    }
+                    else if (File.Exists(standaloneExeInNested))
+                    {
+                        psi = new ProcessStartInfo
+                        {
+                            FileName = standaloneExeInNested,
+                            WorkingDirectory = Path.Combine(baseDir, "backend", "MediaDownloaderBackend"),
                             CreateNoWindow = true,
                             UseShellExecute = false
                         };
