@@ -33,7 +33,13 @@ ENV/
 .packages
 *.apk.sha1
 
-# IDE / Editor files
+# C# / .NET artifacts (Windows)
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userprefs
 
 # IDE / Editor files
 .vscode/
@@ -43,3 +49,4 @@ ENV/
 output/
 downloads/
 installer/output/
+windows/installer/output/

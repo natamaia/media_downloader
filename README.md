@@ -2,117 +2,110 @@
 
 [![Autor](https://img.shields.io/badge/Autor-@natamaia-181717?style=flat-square&logo=github)](https://github.com/natamaia)
 [![Repositório](https://img.shields.io/badge/GitHub-natamaia%2Fmedia__downloader-blue?style=flat-square&logo=github)](https://github.com/natamaia/media_downloader)
-[![Plataforma](https://img.shields.io/badge/Plataforma-Android%20APK%20%7C%20Flutter-3DDC84?style=flat-square&logo=android)](https://github.com/natamaia/media_downloader)
+[![Plataforma](https://img.shields.io/badge/Plataforma-Android%20%7C%20Windows-3DDC84?style=flat-square)](https://github.com/natamaia/media_downloader)
+[![Download APK](https://img.shields.io/badge/📥%20Baixar%20APK-MediaDownloader.apk%20(51MB)-00E676?style=for-the-badge&logo=android&logoColor=white)](https://github.com/natamaia/media_downloader/raw/main/build_apk/MediaDownloader.apk)
 
-**MediaDownloader Pro** é uma solução moderna e multiplataforma para download e extração de áudio e vídeo de múltiplos provedores (YouTube, YouTube Shorts, YouTube Music, Spotify, Deezer, TikTok, Instagram, Vimeo e centenas de outros), com foco prioritário em **dispositivos móveis Android via Flutter + Python Embarcado** e distribuição independente em formato **APK (Sideloading)**.
-
-> [!NOTE]
-> **Evolução da Stack**: A interface legada em C# WPF (.NET 10) foi descontinuada e removida. A nova arquitetura mobile utiliza **Flutter** para uma interface fluida a 60/120 FPS com Material 3, gerenciamento reativo e mantém o motor analítico em **Python (`yt-dlp`)** embarcado diretamente no APK Android.
+**MediaDownloader Pro** é uma solução profissional e multiplataforma para download e extração de áudio e vídeo de múltiplos provedores (YouTube, YouTube Shorts, YouTube Music, Facebook Reels & Vídeos, X/Twitter, Instagram, TikTok, Spotify, Deezer e plataformas de aulas/cursos), estruturada com diretórios independentes para **Android** e **Windows**, compartilhando o mesmo núcleo analítico em **Python (`yt-dlp`)**.
 
 ---
 
-## 1. 🏗️ Arquitetura do Sistema Mobile
+## 🗂️ Organização das Plataformas
+
+O repositório é modularizado em diretórios dedicados por plataforma:
+
+*   📱 [**`android/`**](file:///home/natanael/Modelos/media_downloader/android): Aplicativo mobile nativo desenvolvido em **Flutter (Dart)** com tema escuro e verde neon, Material 3, gerenciamento reativo leve em memória, serviço foreground e motor de extração embutido via Chaquopy / Python.
+*   🪟 [**`windows/`**](file:///home/natanael/Modelos/media_downloader/windows): Aplicativo desktop para **Windows 10/11** desenvolvido em **C# WPF (.NET 10)** com instalador executável Inno Setup e integração automática com o backend local.
+*   📦 [**`build_apk/`**](file:///home/natanael/Modelos/media_downloader/build_apk): Armazena diretamente o binário [**`MediaDownloader.apk`**](file:///home/natanael/Modelos/media_downloader/build_apk/MediaDownloader.apk) (51 MB) compilado e pronto para sideloading em qualquer smartphone Android sem necessidade de ativar Modo Desenvolvedor.
+*   🐍 [**`src/backend/`**](file:///home/natanael/Modelos/media_downloader/src/backend): Núcleo compartilhado em **Python**, com arquitetura de workers dedicados por plataforma (`YouTubeWorker`, `FacebookWorker`, `TwitterWorker`, `InstagramWorker`, `TikTokWorker`, `GenericWorker`) e despacho dinâmico via `WorkerFactory`.
+
+---
+
+## 1. 🏗️ Arquitetura do Sistema
 
 ```mermaid
 flowchart TD
-    subgraph Mobile_App ["📱 Flutter Mobile (Dart)"]
-        UI["Interface Gráfica Material 3\n(Home, Fila de Downloads, Histórico)"]
-        State["Gerenciador de Estado Reativo\n(Atualizações em Tempo Real)"]
-        BridgeDart["Dart Platform Channel\n(MethodChannel & EventChannel)"]
+    subgraph UI_Platforms ["🖥️ Interfaces Multiplataforma"]
+        AndroidUI["📱 Android App (Flutter)\n(android/lib)"]
+        WindowsUI["🪟 Windows Desktop (C# WPF)\n(windows/MediaDownloaderUI)"]
     end
 
-    subgraph Android_OS ["🤖 Android Nativo (Kotlin)"]
-        FGS["Foreground Service + WakeLock\n(Evita que o OS mate o download)"]
-        MediaStore["Scoped Storage & MediaStore\n(Salva em Music/ ou Movies/)"]
-        Chaquopy["Chaquopy Runtime\n(CPython 3.11 nativo arm64-v8a)"]
+    subgraph Bridges ["🔌 Camada de Interoperabilidade"]
+        ChaquopyBridge["Ponte Chaquopy / JNI\n(src/backend/mobile_bridge.py)"]
+        HttpBridge["Localhost REST API / Processo\n(src/backend/main.py)"]
     end
 
-    subgraph Core_Python ["🐍 Motor Python (yt-dlp)"]
-        PyBridge["mobile_bridge.py\n(Interface direta em memória)"]
-        Extractor["ExtractorService\n(oEmbed + Metadados)"]
-        Worker["DownloadWorker Pool\n(Threads de Download com Hooks)"]
+    subgraph Core_Python ["🐍 Motor Central Python (src/backend)"]
+        Factory["WorkerFactory\n(Roteamento por Provedor)"]
+        YT["YouTubeWorker\n(Shorts até 3min, Vídeos, Music)"]
+        FB["FacebookWorker\n(Reels, Watch, CDN Bypass 403)"]
+        TW["TwitterWorker\n(X / Twitter, Xwriter, TwitSave)"]
+        IG["InstagramWorker\n(Reels, Posts)"]
+        TT["TikTokWorker\n(Vídeos sem marca)"]
+        GN["GenericWorker\n(Cursos Hotmart/Wistia, MP4/M3U8)"]
     end
 
-    UI --> State
-    State --> BridgeDart
-    BridgeDart <-->|IPC Nativo| Android_OS
-    Android_OS --> FGS
-    Android_OS --> MediaStore
-    Android_OS <-->|JNI em Memória| Chaquopy
-    Chaquopy --> PyBridge
-    PyBridge --> Extractor
-    PyBridge --> Worker
-    Worker -.->|Streaming de Progresso| BridgeDart
-    BridgeDart -.->|Eventos de % / Velocidade / ETA| State
+    AndroidUI <--> ChaquopyBridge
+    WindowsUI <--> HttpBridge
+    ChaquopyBridge --> Factory
+    HttpBridge --> Factory
+    Factory --> YT
+    Factory --> FB
+    Factory --> TW
+    Factory --> IG
+    Factory --> TT
+    Factory --> GN
 ```
 
 ---
 
 ## 2. 🌟 Recursos Principais
 
-- **Motor Universal em Python (`yt-dlp`) & Downloader Direto**: Suporte a dezenas de provedores (YouTube, Shorts até 3min, YouTube Music, X/Twitter, Xwriter, Telegram, Spotify, Deezer, TikTok, Instagram, Vimeo, plataformas de aulas como Hotmart, Wistia, Loom e arquivos diretos `.mp4`, `.m3u8`, `.mp3`).
-- **Interface Mobile Nativa em Flutter**: Design moderno Material 3, cartões animados, progresso suave em tempo real (MB/s, ETA, %) e botão integrado para **Copiar Erro** e diagnóstico rápido.
-- **Gerenciamento Reativo em Memória**: Fila e histórico leves e fluidos, eliminando bloqueios de transação de banco de dados e otimizando o consumo de bateria e memória no aparelho.
-- **Sem Necessidade de Servidores Remotos**: O motor Python executa em processo local dentro do próprio APK, sem depender de nuvens externas, VPS ou portas abertas.
-- **Foreground Service Android**: Downloads não pausam quando o usuário minimiza o app ou a tela do aparelho se apaga.
-- **Instalação Direta Sem Modo Desenvolvedor**: O binário APK compilado fica disponível na pasta raiz `build_apk/MediaDownloader.apk` pronto para transferência e instalação simples.
+- **Arquitetura Dedicada por Plataforma**: Diretórios isolados para Windows e Android, permitindo desenvolvimento, compilação e empacotamento independentes.
+- **Workers Especializados**: Cada plataforma de vídeo possui um worker Python dedicado com tratamentos de URLs, resoluções de redirects (ex: `/share/r/` do Facebook) e fallbacks adequados.
+- **APK Pronto para Instalação**: O executável compilado fica versionado e disponível em [`build_apk/MediaDownloader.apk`](file:///home/natanael/Modelos/media_downloader/build_apk/MediaDownloader.apk) para download imediato.
+- **Instalação Sem Modo Desenvolvedor**: Basta transferir o `.apk` e instalar no celular permitindo fontes desconhecidas (veja o [Guia em `build_apk/README.md`](file:///home/natanael/Modelos/media_downloader/build_apk/README.md)).
+- **Diagnóstico e Cópia de Erro**: Botão dedicado no app mobile para copiar detalhes do erro em caso de falha de download com um único toque.
 
 ---
 
-## 3. 📚 Documentação Técnica Completa
-
-Para detalhes aprofundados sobre cada camada do sistema, consulte a documentação dedicada na pasta [`docs/`](file:///home/natanael/Modelos/media_downloader/docs):
-
-| Documento | Descrição |
-| :--- | :--- |
-| [**Arquitetura do Sistema**](file:///home/natanael/Modelos/media_downloader/docs/ARCHITECTURE_MOBILE.md) | Visão detalhada das camadas Clean Architecture, fluxos de dados e ciclo de vida mobile. |
-| [**Integração Python no APK**](file:///home/natanael/Modelos/media_downloader/docs/ANDROID_PYTHON_INTEGRATION.md) | Configuração do Chaquopy, compilação de CPython no Android, bindings JNI e `mobile_bridge.py`. |
-| [**Permissões e Armazenamento**](file:///home/natanael/Modelos/media_downloader/docs/PERMISSIONS_AND_STORAGE_GUIDE.md) | Scoped Storage, MediaStore (Músicas e Vídeos), notificações e Foreground Services no Android 14+. |
-| [**Guia de Build e Instalação**](file:///home/natanael/Modelos/media_downloader/docs/BUILD_AND_INSTALL_GUIDE.md) | Instruções para gerar o `.apk` e instalar no celular sem ativar o Modo Desenvolvedor. |
-| [**Diretório de Saída do APK**](file:///home/natanael/Modelos/media_downloader/build_apk/README.md) | Orientações de transferência e instalação do binário na pasta `build_apk/`. |
-
----
-
-## 4. 📂 Estrutura do Repositório
+## 3. 📂 Estrutura do Repositório
 
 ```text
 media_downloader/
-├── build_apk/                       # Pasta de destino do APK final compilado
+├── android/                         # 📱 Aplicativo Mobile Android (Flutter)
+│   ├── android/                     # Camada nativa Android (Gradle / Kotlin)
+│   ├── lib/                         # Interface Material 3 e State Management (Dart)
+│   ├── test/                        # Testes unitários do Flutter (11 testes)
+│   ├── pubspec.yaml                 # Dependências do Flutter
+│   └── README.md
+├── windows/                         # 🪟 Aplicativo Desktop Windows
+│   ├── MediaDownloaderUI/           # Interface gráfica desktop C# WPF (.NET 10)
+│   ├── installer/                   # Scripts Inno Setup (setup.iss, app_icon.ico)
+│   ├── build_installer.ps1          # Automação de compilação do instalador Windows
+│   ├── MediaDownloaderBackend.spec  # Spec do PyInstaller
+│   └── README.md                    # Instruções de compilação Windows
+├── build_apk/                       # 📦 Diretório de Saída do APK
 │   ├── README.md                    # Instruções de instalação no smartphone
-│   └── MediaDownloader.apk          # Binário APK para teste no celular (gerado via build)
-├── docs/                            # Documentação técnica e arquitetural
-│   ├── ARCHITECTURE_MOBILE.md       # Arquitetura geral do app Flutter + Python
-│   ├── ANDROID_PYTHON_INTEGRATION.md# Runtime Chaquopy, Gradle e JNI nativo
-│   ├── PERMISSIONS_AND_STORAGE_GUIDE.md # Permissões e Scoped Storage no Android
-│   └── BUILD_AND_INSTALL_GUIDE.md   # Passo a passo de compilação e sideloading
-├── mobile_app/                      # Aplicação Flutter (Interface e Camada de Domínio)
-│   ├── android/                     # Projeto nativo Android com integração Chaquopy
-│   └── lib/                         # Código Dart (UI Material 3 e State Management)
+│   └── MediaDownloader.apk          # Binário APK Release (51MB)
 ├── src/
-│   ├── backend/                     # Motor compartilhado Python
-│   │   ├── config.py                # Configurações de diretórios e concorrência
-│   │   ├── extractor.py             # Extração oEmbed e metadados yt-dlp
-│   │   ├── mobile_bridge.py         # Ponte direta em memória para o canal nativo Android
-│   │   ├── models.py                # Modelos de dados e enums de estado
-│   │   ├── orchestrator.py          # Gerenciamento de múltiplos downloads simultâneos
-│   │   └── worker.py                # Threads de download assíncrono com hooks de progresso
-│   └── frontend_linux/              # (Opcional) Interface desktop Linux em GTK4
-├── Makefile                         # Comandos de automação (make apk, make run, make test)
+│   └── backend/                     # 🐍 Motor compartilhado Python
+│       ├── workers/                 # Workers modulares por plataforma
+│       ├── config.py                # Configurações de diretórios e concorrência
+│       ├── extractor.py             # Extração oEmbed e metadados yt-dlp
+│       ├── mobile_bridge.py         # Ponte direta em memória para o Android
+│       ├── models.py                # Modelos de dados e enums de estado
+│       ├── orchestrator.py          # Gerenciamento de múltiplos downloads
+│       └── worker.py                # Interface de despacho com WorkerFactory
+├── tests/                           # 🧪 Testes unitários do backend (Pytest 15 testes)
+├── docs/                            # 📚 Documentação técnica e arquitetural
+├── Makefile                         # ⚙️ Automação (make apk, make test, make test-all)
 ├── requirements.txt                 # Dependências Python
 └── README.md                        # Visão geral do projeto
 ```
 
 ---
 
-## 5. 🛠️ Ambiente de Desenvolvimento e Ferramentas
-
-### Pré-requisitos
-- **Flutter SDK**: 3.x estável
-- **Android SDK**: API 34+ com Build-Tools
-- **Java**: JDK 17
-- **Python**: 3.10 ou superior
-
-### Comandos Rápidos
+## 4. 🛠️ Comandos de Desenvolvimento
 
 ```bash
 # Visualizar todos os comandos disponíveis
@@ -121,36 +114,31 @@ make help
 # Compilar o APK Release do Android e mover para build_apk/
 make apk
 
-# Executar todos os testes automatizados (Python backend + Flutter mobile)
+# Executar todos os testes automatizados (Python backend + Flutter Android)
 make test-all
+
+# Executar apenas testes do Python
+make test
+
+# Executar apenas testes do Flutter
+make test-flutter
 ```
 
 ---
 
-## 6. 🗺️ Status de Implementação das Fases
+## 5. 📚 Documentação Técnica Adicional
 
-1. **Fase 1: Especificação e Documentações de Arquitetura** *(Concluída ✅)*
-   - Remoção do C# / WPF.
-   - Criação da pasta `build_apk/` para distribuição direta.
-   - Elaboração das especificações em `docs/`.
-2. **Fase 2: Scaffold do Flutter e Gerenciamento Reativo** *(Concluída ✅)*
-   - Criação do projeto `mobile_app` com Flutter.
-   - Gerenciamento reativo em memória com StateNotifier e remoção de overhead de SQLite.
-3. **Fase 3: Motor Universal Python e Downloader Direto** *(Concluída ✅)*
-   - Suporte a YouTube, YouTube Shorts (até 3min), X (Twitter), Xwriter, Telegram, plataformas de aulas e mídias diretas.
-   - Streaming direto chunk-by-chunk com cálculo de velocidade e ETA.
-4. **Fase 4: Interface de Usuário Material 3 e Botões de Diagnóstico** *(Concluída ✅)*
-   - Telas de Início, Fila de Downloads e Histórico.
-   - Botão "Copiar Erro" e "Ver Log Técnico" para relatório de falhas simplificado.
-5. **Fase 5: Build do APK e Distribuição Sideloading** *(Concluída ✅)*
-   - Binário final gerado e disponível em `build_apk/MediaDownloader.apk`.
-   - Compatível com instalação direta no celular sem modo desenvolvedor.
+Consulte a pasta [`docs/`](file:///home/natanael/Modelos/media_downloader/docs) para guias técnicos detalhados:
+
+*   [**Arquitetura Mobile**](file:///home/natanael/Modelos/media_downloader/docs/ARCHITECTURE_MOBILE.md)
+*   [**Integração Python & Chaquopy**](file:///home/natanael/Modelos/media_downloader/docs/ANDROID_PYTHON_INTEGRATION.md)
+*   [**Permissões e Scoped Storage**](file:///home/natanael/Modelos/media_downloader/docs/PERMISSIONS_AND_STORAGE_GUIDE.md)
+*   [**Guia de Build e Sideloading**](file:///home/natanael/Modelos/media_downloader/docs/BUILD_AND_INSTALL_GUIDE.md)
 
 ---
 
 ## 👤 Autor & Repositório Oficial
 
-- **Autor / Desenvolvedor**: [natamaia](https://github.com/natamaia)
-- **Repositório Oficial**: [github.com/natamaia/media_downloader](https://github.com/natamaia/media_downloader)
-- **Licença**: MIT
-
+*   **Autor**: [@natamaia](https://github.com/natamaia)
+*   **Repositório Oficial**: [github.com/natamaia/media_downloader](https://github.com/natamaia/media_downloader)
+*   **Licença**: MIT

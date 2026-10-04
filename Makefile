@@ -22,12 +22,12 @@ help:
 apk:
 	@echo "==> Compilando APK do MediaDownloader (Flutter + Python)..."
 	@mkdir -p build_apk
-	@if [ -d "mobile_app" ]; then \
-		cd mobile_app && flutter pub get && flutter build apk --release && \
+	@if [ -d "android" ]; then \
+		cd android && flutter pub get && flutter build apk --release && \
 		cp build/app/outputs/flutter-apk/app-release.apk ../build_apk/MediaDownloader.apk && \
 		echo "✅ APK gerado com sucesso em: build_apk/MediaDownloader.apk"; \
 	else \
-		echo "⚠️  Diretório mobile_app ainda não inicializado. Execute a criação do projeto Flutter primeiro."; \
+		echo "⚠️  Diretório android ainda não encontrado."; \
 	fi
 
 test:
@@ -39,9 +39,9 @@ test:
 	fi
 
 test-flutter:
-	@echo "==> Executando testes do Flutter..."
-	@if [ -d "mobile_app" ]; then \
-		cd mobile_app && flutter test; \
+	@echo "==> Executando testes do Flutter (Android)..."
+	@if [ -d "android" ]; then \
+		cd android && flutter test; \
 	fi
 
 test-all: test test-flutter
@@ -52,7 +52,7 @@ clean:
 	@rm -rf .pytest_cache
 	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	@if [ -d "mobile_app" ]; then \
-		cd mobile_app && flutter clean; \
+	@if [ -d "android" ]; then \
+		cd android && flutter clean; \
 	fi
 	@echo "✅ Diretório limpo."
