@@ -129,5 +129,14 @@ void main() {
       expect(meta.qualities, contains('1080p'));
       expect(meta.audioFormats, contains('mp3_320k'));
     });
+
+    test('extracts user YouTube video metadata correctly', () async {
+      final service = PythonEngineService();
+      final meta = await service.extractOnlineMetadata('https://youtu.be/HbVOA6nrVl0?is=yEUeGhN6zG4Rf7P4');
+      expect(meta, isNotNull);
+      expect(meta!.provider, 'YouTube');
+      expect(meta.title, contains('Jeanne'));
+      expect(meta.thumbnail, contains('HbVOA6nrVl0'));
+    });
   });
 }

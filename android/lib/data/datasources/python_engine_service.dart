@@ -5,12 +5,15 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:mobile_app/core/constants/app_constants.dart';
 import 'package:mobile_app/data/models/video_metadata.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt_exp;
 
 class PythonEngineService {
   static const MethodChannel _engineChannel =
       MethodChannel(AppConstants.engineChannel);
   static const EventChannel _progressChannel =
       EventChannel(AppConstants.progressChannel);
+
+  final Set<String> _cancelledDownloadIds = <String>{};
 
   final StreamController<Map<String, dynamic>> _internalProgressController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -146,21 +149,40 @@ class PythonEngineService {
     String? thumbnail = videoId != null ? 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg' : null;
     int duration = isShorts ? 60 : 240;
 
+    // 1. Tenta extração direta rápida via YoutubeExplode
     try {
-      final oembedUrl = 'https://www.youtube.com/oembed?url=${Uri.encodeComponent(url)}&format=json';
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 6);
-      final request = await client.getUrl(Uri.parse(oembedUrl));
-      request.headers.set('User-Agent', 'Mozilla/5.0');
-      final response = await request.close();
-
-      if (response.statusCode == 200) {
-        final body = await response.transform(utf8.decoder).join();
-        final data = json.decode(body) as Map<String, dynamic>;
-        title = data['title'] as String? ?? title;
-        thumbnail = data['thumbnail_url'] as String? ?? thumbnail;
+      final yt = yt_exp.YoutubeExplode();
+      try {
+        final video = await yt.videos.get(url).timeout(const Duration(seconds: 5));
+        title = video.title;
+        final highRes = video.thumbnails.highResUrl;
+        if (highRes.isNotEmpty) {
+          thumbnail = highRes;
+        }
+        if (video.duration != null) {
+          duration = video.duration!.inSeconds;
+        }
+      } finally {
+        yt.close();
       }
-      client.close();
-    } catch (_) {}
+    } catch (_) {
+      // 2. Fallback para oEmbed do YouTube
+      try {
+        final oembedUrl = 'https://www.youtube.com/oembed?url=${Uri.encodeComponent(url)}&format=json';
+        final client = HttpClient()..connectionTimeout = const Duration(seconds: 6);
+        final request = await client.getUrl(Uri.parse(oembedUrl));
+        request.headers.set('User-Agent', 'Mozilla/5.0');
+        final response = await request.close();
+
+        if (response.statusCode == 200) {
+          final body = await response.transform(utf8.decoder).join();
+          final data = json.decode(body) as Map<String, dynamic>;
+          title = data['title'] as String? ?? title;
+          thumbnail = data['thumbnail_url'] as String? ?? thumbnail;
+        }
+        client.close();
+      } catch (_) {}
+    }
 
     return VideoMetadata(
       url: url,
@@ -579,11 +601,12 @@ class PythonEngineService {
     }
 
     // 2. Se for link direto (.mp4, .mp3, etc.) ou se o canal nativo não estiver conectado:
-    // Dispara download direto em Dart via HTTP
+    // Dispara download direto em Dart via HTTP / YoutubeExplode
     _startDirectDownload(
       downloadId: downloadId,
       url: url,
       format: format,
+      quality: quality,
       outputDir: outputDir,
       title: title,
     );
@@ -595,13 +618,14 @@ class PythonEngineService {
     required String downloadId,
     required String url,
     required String format,
+    required String quality,
     required String outputDir,
     required String title,
   }) {
     Future.microtask(() async {
       String downloadUrl = url;
       final client = HttpClient()..connectionTimeout = const Duration(seconds: 20);
-      final isAudio = format.toLowerCase() == 'mp3';
+      final isAudio = format.toLowerCase().contains('mp3') || format.toLowerCase().contains('audio');
       final ext = isAudio ? 'mp3' : 'mp4';
       final cleanTitle = title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
       final filePath = '$outputDir/${cleanTitle.isEmpty ? "download" : cleanTitle}.$ext';
@@ -618,8 +642,24 @@ class PythonEngineService {
           'file_path': filePath,
         });
 
+        final provider = detectProvider(downloadUrl);
+
+        // Se for YouTube (padrão, Shorts ou Music), faz streaming direto via YoutubeExplode
+        if (provider.contains('YouTube')) {
+          await _downloadYouTubeMedia(
+            downloadId: downloadId,
+            url: downloadUrl,
+            format: format,
+            quality: quality,
+            outputDir: outputDir,
+            cleanTitle: cleanTitle,
+            filePath: filePath,
+          );
+          return;
+        }
+
         // Se for Facebook e a URL não for um stream direto .mp4, resolve o stream CDN
-        if (detectProvider(downloadUrl) == 'Facebook' && !downloadUrl.contains('.mp4')) {
+        if (provider == 'Facebook' && !downloadUrl.contains('.mp4')) {
           final fbMeta = await _extractFacebookMetadata(downloadUrl);
           if (fbMeta?.directStreamUrl != null && fbMeta!.directStreamUrl!.isNotEmpty) {
             downloadUrl = fbMeta.directStreamUrl!;
@@ -642,7 +682,8 @@ class PythonEngineService {
         // Se o servidor retornou HTML em vez de arquivo de mídia, não grava arquivo corrompido
         final mimeType = response.headers.contentType?.mimeType.toLowerCase() ?? '';
         if (mimeType.contains('text/html')) {
-          throw Exception('O servidor retornou uma página web (HTML) em vez do arquivo de mídia. O vídeo do Facebook pode ser privado ou exigir login.');
+          final prov = detectProvider(downloadUrl);
+          throw Exception('O servidor retornou uma página web (HTML) em vez do arquivo de mídia. O link do $prov pode ser privado, exigir login ou requerer um link direto.');
         }
 
         if (response.statusCode >= 200 && response.statusCode < 400) {
@@ -655,6 +696,17 @@ class PythonEngineService {
           bool isFirstChunk = true;
 
           await for (final chunk in response) {
+            if (_cancelledDownloadIds.contains(downloadId)) {
+              await sink.close();
+              if (await file.exists()) await file.delete();
+              _internalProgressController.add({
+                'download_id': downloadId,
+                'status': AppConstants.statusCancelled,
+                'file_path': filePath,
+              });
+              return;
+            }
+
             if (isFirstChunk) {
               isFirstChunk = false;
               if (chunk.length >= 10) {
@@ -731,7 +783,139 @@ class PythonEngineService {
     });
   }
 
+  Future<void> _downloadYouTubeMedia({
+    required String downloadId,
+    required String url,
+    required String format,
+    required String quality,
+    required String outputDir,
+    required String cleanTitle,
+    required String filePath,
+  }) async {
+    final yt = yt_exp.YoutubeExplode();
+    String targetPath = filePath;
+    try {
+      final video = await yt.videos.get(url);
+      final resolvedName = (cleanTitle.isEmpty || cleanTitle == 'Mídia' || cleanTitle == 'download')
+          ? video.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim()
+          : cleanTitle;
+
+      final manifest = await yt.videos.streamsClient.getManifest(video.id);
+      final isAudio = format.toLowerCase().contains('mp3') || format.toLowerCase().contains('audio');
+      yt_exp.StreamInfo? streamInfo;
+
+      if (isAudio) {
+        streamInfo = manifest.audioOnly.withHighestBitrate();
+        final ext = streamInfo.container.name == 'webm' ? 'webm' : (format.toLowerCase().contains('mp3') ? 'mp3' : 'm4a');
+        targetPath = '$outputDir/$resolvedName.$ext';
+      } else {
+        if (manifest.muxed.isNotEmpty) {
+          final q = quality.toLowerCase();
+          if (q.contains('720')) {
+            streamInfo = manifest.muxed.firstWhere(
+              (s) => s.qualityLabel.contains('720'),
+              orElse: () => manifest.muxed.withHighestBitrate(),
+            );
+          } else if (q.contains('360')) {
+            streamInfo = manifest.muxed.firstWhere(
+              (s) => s.qualityLabel.contains('360'),
+              orElse: () => manifest.muxed.withHighestBitrate(),
+            );
+          } else if (q.contains('480')) {
+            streamInfo = manifest.muxed.firstWhere(
+              (s) => s.qualityLabel.contains('480'),
+              orElse: () => manifest.muxed.withHighestBitrate(),
+            );
+          } else {
+            streamInfo = manifest.muxed.withHighestBitrate();
+          }
+        } else {
+          streamInfo = manifest.video.withHighestBitrate();
+        }
+        targetPath = '$outputDir/$resolvedName.mp4';
+      }
+
+      final file = File(targetPath);
+      final sink = file.openWrite();
+      final stream = yt.videos.streamsClient.get(streamInfo);
+      final totalBytes = streamInfo.size.totalBytes;
+      int downloadedBytes = 0;
+      final stopwatch = Stopwatch()..start();
+
+      await for (final chunk in stream) {
+        if (_cancelledDownloadIds.contains(downloadId)) {
+          await sink.close();
+          if (await file.exists()) await file.delete();
+          _internalProgressController.add({
+            'download_id': downloadId,
+            'status': AppConstants.statusCancelled,
+            'file_path': targetPath,
+          });
+          return;
+        }
+
+        sink.add(chunk);
+        downloadedBytes += chunk.length;
+
+        final elapsed = stopwatch.elapsedMilliseconds / 1000.0;
+        String speed = '0 KB/s';
+        int eta = 0;
+        if (elapsed > 0) {
+          final bytesSec = downloadedBytes / elapsed;
+          if (bytesSec > 1024 * 1024) {
+            speed = '${(bytesSec / (1024 * 1024)).toStringAsFixed(2)} MB/s';
+          } else {
+            speed = '${(bytesSec / 1024).toStringAsFixed(1)} KB/s';
+          }
+          if (totalBytes > downloadedBytes && bytesSec > 0) {
+            eta = ((totalBytes - downloadedBytes) / bytesSec).toInt();
+          }
+        }
+
+        final progress = totalBytes > 0
+            ? ((downloadedBytes / totalBytes) * 100).clamp(0.0, 99.0)
+            : 50.0;
+
+        _internalProgressController.add({
+          'download_id': downloadId,
+          'status': AppConstants.statusDownloading,
+          'progress_percent': progress,
+          'download_speed': speed,
+          'eta_seconds': eta,
+          'downloaded_bytes': downloadedBytes,
+          'total_bytes': totalBytes,
+          'file_path': targetPath,
+        });
+      }
+
+      await sink.flush();
+      await sink.close();
+
+      _internalProgressController.add({
+        'download_id': downloadId,
+        'status': AppConstants.statusCompleted,
+        'progress_percent': 100.0,
+        'download_speed': '0 KB/s',
+        'eta_seconds': 0,
+        'downloaded_bytes': downloadedBytes,
+        'total_bytes': downloadedBytes,
+        'file_path': targetPath,
+      });
+    } catch (e) {
+      dev.log('Erro no download do YouTube para $url: $e', name: 'PythonEngineService');
+      _internalProgressController.add({
+        'download_id': downloadId,
+        'status': AppConstants.statusFailed,
+        'error_message': 'Falha no download da mídia: $e',
+        'file_path': targetPath,
+      });
+    } finally {
+      yt.close();
+    }
+  }
+
   Future<bool> cancelDownload(String downloadId) async {
+    _cancelledDownloadIds.add(downloadId);
     try {
       final result = await _engineChannel.invokeMethod<bool>(
         'cancelDownload',
