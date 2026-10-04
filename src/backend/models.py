@@ -1,6 +1,30 @@
 from enum import Enum
 from typing import List, Optional
-from pydantic import BaseModel, Field
+try:
+    from pydantic import BaseModel, Field
+except ImportError:
+    class BaseModel:
+        def __init__(self, **kwargs):
+            for k in dir(self.__class__):
+                if not k.startswith('_') and not callable(getattr(self.__class__, k)):
+                    val = getattr(self.__class__, k)
+                    if isinstance(val, list):
+                        setattr(self, k, list(val))
+                    elif isinstance(val, dict):
+                        setattr(self, k, dict(val))
+                    else:
+                        setattr(self, k, val)
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+        def dict(self, *args, **kwargs):
+            return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+
+        def model_dump(self, *args, **kwargs):
+            return self.dict()
+
+    def Field(default=None, description=None, **kwargs):
+        return default
 
 class FormatType(str, Enum):
     MP4 = "mp4"

@@ -1,7 +1,9 @@
 import re
+import os
 import logging
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 import urllib.request
+import urllib.parse
 import json
 import yt_dlp
 from src.backend.models import VideoInfoResponse
@@ -14,8 +16,14 @@ class ExtractorService:
         url_lower = url.lower()
         if "music.youtube.com" in url_lower:
             return "YouTube Music"
+        elif "youtube.com/shorts" in url_lower or "/shorts/" in url_lower:
+            return "YouTube Shorts"
         elif "youtube.com" in url_lower or "youtu.be" in url_lower:
             return "YouTube"
+        elif "x.com" in url_lower or "twitter.com" in url_lower or "xwriter" in url_lower or "twitsave" in url_lower:
+            return "X (Twitter)"
+        elif "t.me" in url_lower or "telegram.me" in url_lower:
+            return "Telegram"
         elif "instagram.com" in url_lower or "instagr.am" in url_lower:
             return "Instagram"
         elif "spotify.com" in url_lower:
@@ -28,10 +36,20 @@ class ExtractorService:
             return "TikTok"
         elif "vimeo.com" in url_lower:
             return "Vimeo"
-        return "Generic"
+        elif any(course in url_lower for course in ["hotmart", "wistia", "loom.com", "kaltura", "streamable", "pandavideo", "vdo.ninja"]):
+            return "Plataforma de Aulas"
+        elif "reddit.com" in url_lower or "v.redd.it" in url_lower:
+            return "Reddit"
+        elif any(fb in url_lower for fb in ["facebook.com", "fb.watch", "fb.com", "fb.gg"]):
+            return "Facebook"
+        elif any(url_lower.endswith(ext) or f"{ext}?" in url_lower for ext in [".mp4", ".m3u8", ".mpd", ".webm", ".mkv", ".mov", ".ts"]):
+            return "Vídeo Direto (MP4/HLS)"
+        elif any(url_lower.endswith(ext) or f"{ext}?" in url_lower for ext in [".mp3", ".m4a", ".aac", ".wav", ".ogg", ".flac"]):
+            return "Áudio Direto"
+        return "Site / Aula Web"
 
     @staticmethod
-    def _fetch_oembed_metadata(url: str, provider: str) -> Tuple[str, str, str]:
+    def _fetch_oembed_metadata(url: str, provider: str) -> Tuple[str, Optional[str], str]:
         """
         Fetches oEmbed metadata for Spotify/Deezer to construct search queries.
         Returns tuple of (title, thumbnail, search_query).
@@ -55,7 +73,6 @@ class ExtractorService:
             except Exception as e:
                 logger.warning(f"Falha oEmbed para {provider}: {e}")
 
-        # Fallback query
         clean_url = re.sub(r'https?://[^/]+/', '', url).replace('-', ' ')
         return f"{provider} Track", None, f"ytsearch1:{clean_url}"
 
@@ -68,13 +85,85 @@ class ExtractorService:
         if provider in ("Spotify", "Deezer"):
             _, _, search_query = cls._fetch_oembed_metadata(url, provider)
             return search_query, provider, True
+        elif provider == "Áudio Direto":
+            return url, provider, True
+        elif provider == "Facebook":
+            reel_match = re.search(r'(?:reel|reels|videos|v)[/=](\d+)', url)
+            if reel_match:
+                video_id = reel_match.group(1)
+                return f"https://m.facebook.com/watch/?v={video_id}&_rdr", provider, False
+            return url, provider, False
         return url, provider, False
+
+    @classmethod
+    def _extract_direct_or_web_metadata(cls, url: str, provider: str) -> VideoInfoResponse:
+        """
+        Fallback extraction for direct media files (.mp4, .m3u8, .mp3),
+        course platforms, and web pages with OpenGraph or HTML5 video tags.
+        """
+        if not url.startswith(('http://', 'https://')):
+            raise ValueError(f"URL inválida: '{url}' não é um endereço HTTP/HTTPS válido.")
+
+        title = "Vídeo Web"
+        thumbnail = None
+        is_audio = provider == "Áudio Direto"
+
+        # Tenta extrair título a partir do nome do arquivo na URL
+        parsed = urllib.parse.urlparse(url)
+        path_name = os.path.basename(parsed.path)
+        if path_name:
+            clean_name = os.path.splitext(path_name)[0]
+            clean_name = re.sub(r'[-_]+', ' ', clean_name).strip()
+            if len(clean_name) >= 3:
+                title = clean_name.capitalize()
+
+        # Se for uma página web genérica ou plataforma de aula, tenta ler as tags OpenGraph
+        if not any(url.lower().endswith(ext) for ext in [".mp4", ".mp3", ".m4a", ".webm", ".mkv"]):
+            try:
+                req = urllib.request.Request(
+                    url,
+                    headers={
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+                    }
+                )
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    html_content = resp.read(65536).decode('utf-8', errors='ignore')
+
+                    og_title = re.search(r'<meta\s+property=["\']og:title["\']\s+content=["\'](.*?)["\']', html_content, re.IGNORECASE)
+                    if not og_title:
+                        og_title = re.search(r'<title>(.*?)</title>', html_content, re.IGNORECASE)
+                    if og_title and og_title.group(1).strip():
+                        title = og_title.group(1).strip()
+
+                    og_img = re.search(r'<meta\s+property=["\']og:image["\']\s+content=["\'](.*?)["\']', html_content, re.IGNORECASE)
+                    if og_img and og_img.group(1).strip():
+                        thumbnail = og_img.group(1).strip()
+            except Exception as e:
+                logger.debug(f"Aviso ao consultar metadados HTML: {e}")
+
+        qualities = ["Original", "1080p", "720p", "480p"]
+        audio_formats = ["mp3_320k", "mp3_192k", "mp3_128k"]
+
+        if is_audio:
+            qualities = audio_formats
+
+        return VideoInfoResponse(
+            url=url,
+            provider=provider,
+            title=title,
+            duration_seconds=0,
+            thumbnail=thumbnail,
+            qualities=qualities,
+            audio_formats=audio_formats
+        )
 
     @classmethod
     def extract_info(cls, url: str) -> VideoInfoResponse:
         """
         Extracts video/audio metadata and supported resolution/format options
-        from YouTube, Instagram, Spotify, Deezer, TikTok and 1000+ supported hosts.
+        from YouTube, Shorts, X/Twitter, Instagram, Spotify, Deezer, TikTok,
+        course platforms, direct media and 1800+ hosts.
         """
         provider = cls.detect_provider(url)
         target_url = url
@@ -83,27 +172,29 @@ class ExtractorService:
             title, thumbnail, search_query = cls._fetch_oembed_metadata(url, provider)
             target_url = search_query
 
+        # Configuração do yt-dlp com headers de navegador e tratamento para páginas genéricas
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
             'skip_download': True,
             'extract_flat': False,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'referer': target_url,
         }
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info: Dict[str, Any] = ydl.extract_info(target_url, download=False)
 
-            # If ytsearch result, pick first entry
+            # Se for playlist / busca, pega o primeiro item
             if info.get('_type') == 'playlist' and info.get('entries'):
                 info = info['entries'][0]
 
-            title = info.get('title', 'Conteúdo Mídia')
+            title = info.get('title') or 'Conteúdo Mídia'
             duration = int(info.get('duration') or 0)
             thumbnail = info.get('thumbnail') or (thumbnail if provider in ("Spotify", "Deezer") else None)
 
-            # Parse video formats for unique resolutions
+            # Resoluções disponíveis
             formats = info.get('formats', [])
             heights = set()
             for fmt in formats:
@@ -115,13 +206,12 @@ class ExtractorService:
             sorted_heights = sorted(list(heights), reverse=True)
             qualities: List[str] = [f"{h}p" for h in sorted_heights]
             if not qualities:
-                qualities = ["best", "720p", "360p"]
+                qualities = ["Original", "1080p", "720p", "480p"]
 
             audio_formats = ["mp3_320k", "mp3_192k", "mp3_128k"]
 
-            # If provider is Spotify, Deezer or YT Music, default audio formats first
-            if provider in ("Spotify", "Deezer", "YouTube Music"):
-                qualities = ["mp3_320k", "mp3_192k", "mp3_128k"] + qualities
+            if provider in ("Spotify", "Deezer", "YouTube Music", "Áudio Direto"):
+                qualities = audio_formats + qualities
 
             return VideoInfoResponse(
                 url=url,
@@ -133,5 +223,10 @@ class ExtractorService:
                 audio_formats=audio_formats
             )
         except Exception as e:
-            logger.error(f"Erro ao extrair metadados para {provider} URL {url}: {str(e)}")
-            raise RuntimeError(f"Falha ao obter dados do link ({provider}): {str(e)}")
+            logger.warning(f"yt-dlp falhou para {provider} URL {url} ({e}). Acionando extrator universal direto...")
+            # Fallback para arquivos diretos (.mp4, .m3u8, .mp3), sites de aula e links bloqueados por 403
+            try:
+                return cls._extract_direct_or_web_metadata(url, provider)
+            except Exception as e_fallback:
+                logger.error(f"Erro em todos os extratores para {url}: {e_fallback}")
+                raise RuntimeError(f"Falha ao obter dados do link ({provider}): {str(e)}")

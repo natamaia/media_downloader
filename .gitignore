@@ -1,10 +1,6 @@
 # Environment variables
 .env
 
-# Documentation & Test folders (excluded from remote repo as per project guidelines)
-docs/
-tests/
-
 # Python artifacts
 __pycache__/
 *.py[cod]
@@ -15,11 +11,10 @@ env/
 build/
 develop-eggs/
 dist/
-downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -28,16 +23,17 @@ wheels/
 .installed.cfg
 *.egg
 venv/
+.venv/
 ENV/
 
-# C# / .NET artifacts
-bin/
-obj/
-.vs/
-*.user
-*.useros scaffolding
-*.suo
-*.userprefs
+# Flutter / Dart artifacts
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+*.apk.sha1
+
+# IDE / Editor files
 
 # IDE / Editor files
 .vscode/
